@@ -259,20 +259,6 @@ test_error_missing_end()
     mp_set_var(ctx, "z", "20");
     uint8_t ret = mp_render_segment(ctx, tmpl, NULL, ".");
     CC_ASSERT_UINT8_EQUAL(ret, MP_ERR_MISSING_END_TAG);
-
-    fclose(ret_buffer);
-
-    CC_SUCCESS;
-}
-
-cc_result_t
-test_error_missing_end_string()
-{
-    const char *tmpl = "{{ if x != y || z == (y * 2) }}true";
-    mp_set_var(ctx, "x", "10");
-    mp_set_var(ctx, "y", "10");
-    mp_set_var(ctx, "z", "20");
-    uint8_t ret = mp_render_segment(ctx, tmpl, NULL, ".");
     CC_ASSERT_STRING_EQUAL(mp_err_lookup(ret), "missing end tag");
 
     fclose(ret_buffer);
@@ -302,7 +288,6 @@ main(void)
     CC_RUN(test_boolean_and);
     CC_RUN(test_boolean_or);
     CC_RUN(test_error_missing_end);
-    CC_RUN(test_error_missing_end_string);
 
     CC_COMPLETE;
 }

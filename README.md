@@ -82,7 +82,7 @@ If a value contains HTML or characters that could be replaced by the escaping pr
 
 ### Error Handling
 
-Functions that can error will return a `uint8_t` value starting at 1. A lookup functions is provided to the the error string.
+Functions that can error will return a `uint8_t` value starting at 1. A lookup function is provided to the error string.
 
 ```c
 uint8_t ret = mp_render_segment(ctx, tpl, NULL, ".");

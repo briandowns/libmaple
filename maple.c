@@ -349,7 +349,7 @@ is_included(const char *fullpath)
 {
     for (uint8_t i = 0; i < include_depth; i++) {
         if (!strcmp(include_stack[i], fullpath)) {
-            return 1;
+            return MP_ERR_FILE_NOT_FOUND;
         }
     }
 
@@ -581,7 +581,7 @@ mp_render_file(mp_context_t *ctx, const char *filename, const char *caller_dir)
 
     char absPath[PATH_MAX_LEN];
     if (!realpath(rel, absPath)) {
-        return 1;
+        return MP_ERR_FILE_NOT_FOUND;
     }
 
     if (is_included(absPath)) {
@@ -598,7 +598,10 @@ mp_render_file(mp_context_t *ctx, const char *filename, const char *caller_dir)
 
     char dir[PATH_MAX_LEN];
     dirname_from_path(absPath, dir);
-    mp_render_segment(ctx, content, NULL, dir);
+    uint8_t ret = mp_render_segment(ctx, content, NULL, dir);
+    if (ret != 0) {
+        return ret;
+    }
 
     pop_include();
 
@@ -690,15 +693,19 @@ mp_render_segment(mp_context_t *ctx,const char *tpl, const char *end, const char
                 }
 
                 if (!end_tag) {
-                    return 3;
+                    return MP_ERR_MISSING_END_TAG;
                 }
 
                 uint8_t truth = eval_expr(ctx, cond) != 0;
+                uint8_t ret = 0;
 
                 if (truth) {
-                    mp_render_segment(ctx, if_start, else_tag ? "{{ else }}" : "{{ end }}", base_dir);
+                    ret = mp_render_segment(ctx, if_start, else_tag ? "{{ else }}" : "{{ end }}", base_dir);
                 } else if (else_tag) {
-                    mp_render_segment(ctx, else_tag + strlen("{{ else }}"), "{{ end }}", base_dir);
+                    ret = mp_render_segment(ctx, else_tag + strlen("{{ else }}"), "{{ end }}", base_dir);
+                }
+                if (ret != 0) {
+                    return ret;
                 }
 
                 p = end_tag + strlen("{{ end }}");
@@ -728,7 +735,7 @@ mp_render_segment(mp_context_t *ctx,const char *tpl, const char *end, const char
 
                 end_tag = strstr(scan - 1, "{{ end }}");
                 if (!end_tag) {
-                    return 3;
+                    return MP_ERR_MISSING_END_TAG;
                 }
 
                 const char *items = get_var(ctx, list);
@@ -749,10 +756,13 @@ mp_render_segment(mp_context_t *ctx,const char *tpl, const char *end, const char
 
             if (!strncmp(token, "include ", 8)) {
                 char fname[256];
-                if (sscanf(token + 8, "\"%255[^\"]\"", fname) == 1)
-                    mp_render_file(ctx, fname, base_dir);
-                else {
-                    return 2;
+                if (sscanf(token + 8, "\"%255[^\"]\"", fname) == 1) {
+                    uint8_t ret = mp_render_file(ctx, fname, base_dir);
+                    if (ret != 0) {
+                        return ret;
+                    }
+                } else {
+                    return MP_ERR_INVALID_INCLUDE_SYNTAX;
                 }
                 continue;
             }
@@ -782,12 +792,12 @@ mp_render_segment(mp_context_t *ctx,const char *tpl, const char *end, const char
             }
             
             if (!strncmp(token, "safe ", 5)) {
-                    const char *var = token + 5;
+                const char *var = token + 5;
 
-                    while (isspace(*var)) {
-                        var++;
-                    }
-                    fprintf(ctx->out, "%s", get_var(ctx, var));
+                while (isspace(*var)) {
+                    var++;
+                }
+                fprintf(ctx->out, "%s", get_var(ctx, var));
             } else {
                 const char *val = get_var(ctx, token);
                 fprintf(ctx->out, "%s", html_escape(val));
@@ -800,7 +810,7 @@ mp_render_segment(mp_context_t *ctx,const char *tpl, const char *end, const char
     return 0;
 }
 
-char*
+const char*
 mp_err_lookup(const uint8_t code)
 {
     switch (code) {

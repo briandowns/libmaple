@@ -25,7 +25,6 @@
  * SUCH DAMAGE.
  */
 
-#include <stdint.h>
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -129,7 +128,7 @@ mp_render_file(mp_context_t *ctx, const char *filename,
 /**
  * mp_err_lookup gets the error string for the given error code.
  */
-char*
+const char*
 mp_err_lookup(const uint8_t code);
 
 #endif /** end __MAPLE_H */
