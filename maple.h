@@ -25,6 +25,7 @@
  * SUCH DAMAGE.
  */
 
+#include <stdint.h>
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -32,11 +33,16 @@ extern "C" {
 #ifndef __MAPLE_H
 #define __MAPLE_H
 
+#include <stdint.h>
 #include <stdio.h>
 
 #define MAX_VARS    64
 #define MAX_VAR_LEN 64
 #define MAX_FUNCS   64
+
+#define MP_ERR_FILE_NOT_FOUND 1
+#define MP_ERR_INVALID_INCLUDE_SYNTAX 2
+#define MP_ERR_MISSING_END_TAG 3
 
 /**
  * var_t holds all variables stored in key/value pairs.
@@ -108,7 +114,7 @@ mp_register_func(mp_context_t *ctx, const char *name, mp_func fn);
  * mp_render_segment renders the given template with the seeded values in the
  * provided context.
  */
-void
+uint8_t
 mp_render_segment(mp_context_t *ctx, const char *tpl, const char *end,
                   const char *base_dir);
 
@@ -116,9 +122,15 @@ mp_render_segment(mp_context_t *ctx, const char *tpl, const char *end,
  * mp_render_file renders the given file with the seeded values in the provided
  * context.
  */
-void
+uint8_t
 mp_render_file(mp_context_t *ctx, const char *filename,
                const char *caller_dir);
+
+/**
+ * mp_err_lookup gets the error string for the given error code.
+ */
+char*
+mp_err_lookup(const uint8_t code);
 
 #endif /** end __MAPLE_H */
 #ifdef __cplusplus

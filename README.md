@@ -80,6 +80,20 @@ If a value contains HTML or characters that could be replaced by the escaping pr
 {{ safe var_containing_known_good_html }}
 ```
 
+### Error Handling
+
+Functions that can error will return a `uint8_t` value starting at 1. A lookup functions is provided to the the error string.
+
+```c
+uint8_t ret = mp_render_segment(ctx, tpl, NULL, ".");
+if (ret != 0) {
+    printf("%s\n", mp_err_lookup(ret));
+    return 1;
+}
+```
+
+This pattern should be used when extending functionality.
+
 ## Tests
 
 All tests can be found in the `tests/` directory and are easily extended.
