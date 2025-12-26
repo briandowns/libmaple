@@ -1,0 +1,14 @@
+*.o
+*.so
+*.dynlib
+
+.vscode/
+
+bin/*
+tests/tests
+example
+libmaplete.dylib
+libmaplete.so
+examples/uf
+examples/ex_email
+examples/func_all
