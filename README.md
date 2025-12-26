@@ -25,7 +25,7 @@ When linking, make sure to include the math library with `-lm`.
 - **Variable substitution**:  
   `{{ name }}`
   
-  A singal symbol between the double curly braces indicates a variable. If that variable has been set on the context, this will be rendered with whitespace trimmed.
+  A single symbol between the double curly braces indicates a variable. If that variable has been set on the context, this will be rendered with whitespace trimmed.
 
 - **Function calls**:  
   Call built‑in or custom C functions
