@@ -1,3 +1,4 @@
+#include <stdint.h>
 #include <sys/stat.h>
 #include <unistd.h>
 
@@ -21,7 +22,11 @@ main(void)
         "{{ if (x + y) >= 15 && age < 30 }}Condition True{{ else }}Condition False{{ end }}\n"
         "Loop:\n{{ range items }}- {{ . }}\n{{ end }}\n";
 
-    mp_render_segment(ctx, tpl, NULL, ".");
+    uint8_t ret = mp_render_segment(ctx, tpl, NULL, ".");
+    if (ret != 0) {
+        printf("%s\n", mp_err_lookup(ret));
+        return 1;
+    }
 
     mp_free(ctx);
 

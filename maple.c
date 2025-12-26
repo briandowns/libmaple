@@ -309,7 +309,8 @@ cache_load(const char *path)
 
     FILE *fp = fopen(path, "r");
     if (fp == NULL) {
-        printf("[Error: File not found %s]\n", path);
+        // file not found. calling function will 
+        // handle the NULL knowing there's no file.
         return NULL;
     }
 
@@ -567,7 +568,7 @@ eval_expr(mp_context_t *ctx, const char *expr)
     return parse_expr(ctx, &p);
 }
 
-void
+uint8_t
 mp_render_file(mp_context_t *ctx, const char *filename, const char *caller_dir)
 {
     char rel[PATH_MAX_LEN];
@@ -580,21 +581,19 @@ mp_render_file(mp_context_t *ctx, const char *filename, const char *caller_dir)
 
     char absPath[PATH_MAX_LEN];
     if (!realpath(rel, absPath)) {
-        printf("[Error: file not found %s]\n", rel);
-        return;
+        return 1;
     }
 
     if (is_included(absPath)) {
-        printf("[Skipping cyclic include: %s]\n", absPath);
-        return;
+        // skipping the cyclic include for the given path
+        return 0;
     }
 
     push_include(absPath);
     char *content = cache_load(absPath);
-
     if (!content) {
         pop_include();
-        return;
+        return 0;
     }
 
     char dir[PATH_MAX_LEN];
@@ -602,6 +601,8 @@ mp_render_file(mp_context_t *ctx, const char *filename, const char *caller_dir)
     mp_render_segment(ctx, content, NULL, dir);
 
     pop_include();
+
+    return 0;
 }
 
 /**
@@ -645,7 +646,7 @@ html_escape(const char *s)
 /**
  * mp_render_segment
  */
-void
+uint8_t
 mp_render_segment(mp_context_t *ctx,const char *tpl, const char *end, const char *base_dir)
 {
     const char* p = tpl;
@@ -689,8 +690,7 @@ mp_render_segment(mp_context_t *ctx,const char *tpl, const char *end, const char
                 }
 
                 if (!end_tag) {
-                    printf("[Error: missing end]\n");
-                    return;
+                    return 3;
                 }
 
                 uint8_t truth = eval_expr(ctx, cond) != 0;
@@ -728,8 +728,7 @@ mp_render_segment(mp_context_t *ctx,const char *tpl, const char *end, const char
 
                 end_tag = strstr(scan - 1, "{{ end }}");
                 if (!end_tag) {
-                    printf("[Error: missing end]\n");
-                    return;
+                    return 3;
                 }
 
                 const char *items = get_var(ctx, list);
@@ -753,7 +752,7 @@ mp_render_segment(mp_context_t *ctx,const char *tpl, const char *end, const char
                 if (sscanf(token + 8, "\"%255[^\"]\"", fname) == 1)
                     mp_render_file(ctx, fname, base_dir);
                 else {
-                    printf("[Error: invalid include syntax]\n");
+                    return 2;
                 }
                 continue;
             }
@@ -796,5 +795,22 @@ mp_render_segment(mp_context_t *ctx,const char *tpl, const char *end, const char
         } else {
             fputc(*p++, ctx->out);
         }
+    }
+
+    return 0;
+}
+
+char*
+mp_err_lookup(const uint8_t code)
+{
+    switch (code) {
+        case MP_ERR_FILE_NOT_FOUND:
+            return "file not found";
+        case MP_ERR_INVALID_INCLUDE_SYNTAX:
+            return "invalid include syntax";
+        case MP_ERR_MISSING_END_TAG:
+            return "missing end tag";
+        default:
+            return "unknown error code";
     }
 }
