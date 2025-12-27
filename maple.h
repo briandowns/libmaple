@@ -39,9 +39,10 @@ extern "C" {
 #define MAX_VAR_LEN 64
 #define MAX_FUNCS   64
 
-#define MP_ERR_FILE_NOT_FOUND 1
+#define MP_ERR_FILE_NOT_FOUND         1
 #define MP_ERR_INVALID_INCLUDE_SYNTAX 2
-#define MP_ERR_MISSING_END_TAG 3
+#define MP_ERR_MISSING_END_TAG        3
+#define MP_ERR_UNABLE_TO_LOAD_INCLUDE 4
 
 /**
  * var_t holds all variables stored in key/value pairs.
@@ -111,7 +112,9 @@ mp_register_func(mp_context_t *ctx, const char *name, mp_func fn);
 
 /**
  * mp_render_segment renders the given template with the seeded values in the
- * provided context.
+ * provided context. The "base_dir" variable is the relative location of the 
+ * template to the executable. If not in the same directory, populate this with
+ * the relative path.
  */
 uint8_t
 mp_render_segment(mp_context_t *ctx, const char *tpl, const char *end,
