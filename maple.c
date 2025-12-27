@@ -27,6 +27,7 @@
 
 #include <ctype.h>
 #include <math.h>
+#include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -344,16 +345,16 @@ cache_load(const char *path)
  * is_included checks to see if a template file at the given path has
  * already been included.
  */
-static int
+static bool
 is_included(const char *fullpath)
 {
     for (uint8_t i = 0; i < include_depth; i++) {
         if (!strcmp(include_stack[i], fullpath)) {
-            return MP_ERR_FILE_NOT_FOUND;
+            return true;
         }
     }
 
-    return 0;
+    return false;
 }
 
 /**
