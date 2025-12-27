@@ -569,81 +569,37 @@ eval_expr(mp_context_t *ctx, const char *expr)
     return parse_expr(ctx, &p);
 }
 
-// uint8_t
-// mp_render_file(mp_context_t *ctx, const char *filename, const char *caller_dir)
-// {
-//     char rel[PATH_MAX_LEN];
-
-//     if (filename[0] == '/' || (strlen(filename) > 2 && filename[1] == ':')) {
-//         strcpy(rel, filename);
-//     } else {
-//         join_path(rel, caller_dir, filename);
-//     }
-    
-//     char absPath[PATH_MAX_LEN];
-//     if (!realpath(rel, absPath)) {
-//         return MP_ERR_FILE_NOT_FOUND;
-//     }
-
-//     if (is_included(absPath)) {
-//         // skipping the cyclic include for the given path
-//         return 0;
-//     }
-
-//     push_include(absPath);
-//     char *content = cache_load(absPath);
-//     if (!content) {
-//         pop_include();
-//         return 0;
-//     }
-
-//     char dir[PATH_MAX_LEN];
-//     dirname_from_path(absPath, dir);
-//     uint8_t ret = mp_render_segment(ctx, content, NULL, dir);
-//     if (ret != 0) {
-//         return ret;
-//     }
-
-//     pop_include();
-
-//     return 0;
-// }
-
 uint8_t
-mp_render_file(mp_context_t* ctx, const char* filename, const char* callerDir) {
-    char fullPath[PATH_MAX_LEN];
-    char absPath[PATH_MAX_LEN];
+mp_render_file(mp_context_t *ctx, const char *filename, const char *caller_dir) {
+    char full_path[PATH_MAX_LEN];
+    char abs_path[PATH_MAX_LEN];
 
-    // Prefer caller directory when file path is relative
-    if (filename[0] == '/' || (strlen(filename) > 2 && filename[1] == ':'))
-        strncpy(fullPath, filename, PATH_MAX_LEN);
-    else
-        join_path(fullPath, callerDir ? callerDir : ".", filename);
+    if (filename[0] == '/' || (strlen(filename) > 2 && filename[1] == ':')) {
+        snprintf(full_path, sizeof(full_path), "%s", filename);
+    } else {
+        join_path(full_path, caller_dir ? caller_dir : ".", filename);
+    }
 
-    // Normalize to full OS path
-    if (!realpath(fullPath, absPath)) {
-        printf("[Error: include file not found: %s]\n", fullPath);
+    if (!realpath(full_path, abs_path)) {
         return MP_ERR_FILE_NOT_FOUND;
     }
 
-    // Guard against cyclic include
-    if (is_included(absPath)) {
-        printf("[Skipping cyclic include: %s]\n", absPath);
+    // guard against cyclic include
+    if (is_included(abs_path)) {
         return 0;
     }
 
-    push_include(absPath);
+    push_include(abs_path);
 
-    char* content = cache_load(absPath);
+    char *content = cache_load(abs_path);
     if (!content) {
-        printf("[Error: unable to load include: %s]\n", absPath);
         pop_include();
-        return 4;
+        return MP_ERR_UNABLE_TO_LOAD_INCLUDE;
     }
 
-    // Derive relative dir for nested includes
+    // derive relative dir for nested includes
     char dir[PATH_MAX_LEN];
-    dirname_from_path(absPath, dir);
+    dirname_from_path(abs_path, dir);
 
     mp_render_segment(ctx, content, NULL, dir);
 

@@ -42,6 +42,7 @@ extern "C" {
 #define MP_ERR_FILE_NOT_FOUND         1
 #define MP_ERR_INVALID_INCLUDE_SYNTAX 2
 #define MP_ERR_MISSING_END_TAG        3
+#define MP_ERR_UNABLE_TO_LOAD_INCLUDE 4
 
 /**
  * var_t holds all variables stored in key/value pairs.

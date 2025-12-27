@@ -16,7 +16,7 @@ main(void)
         "</html>\n\n";
 
     mp_set_var(ctx, "site_name", "Sky Island");
-    mp_set_var(ctx, "footer", "C 2025");
+    mp_set_var(ctx, "footer", "© 2025");
 
     uint8_t ret = mp_render_segment(ctx, tmpl, NULL, ".");
     if (ret != 0) {
