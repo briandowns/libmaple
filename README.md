@@ -1,6 +1,6 @@
 # libmaple
 
-[![Build and Deploy](https://github.com/briandowns/libmaple/actions/workflows/main.yml/badge.svg)](https://github.com/briandowns/libmaple/actions/workflows/compile_example.yml/badge.svg)
+[![Build and Deploy](https://github.com/briandowns/libmaple/actions/workflows/main.yml/badge.svg)](https://github.com/briandowns/libmaple/actions/workflows/main.yml/badge.svg)
 
 **Maple** is a lightweight, embeddable template engine written in pure C. It provides variables, conditional logic, loops, arithmetic, comparisons, functions, file includes, and caching, with no dependencies.
 
