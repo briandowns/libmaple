@@ -301,11 +301,11 @@ cache_lookup(const char *path)
 static char*
 cache_load(const char *path)
 {
-    cached_template_t *cache = cache_lookup(path);
+    cached_template_t *cache_item = cache_lookup(path);
 
     time_t now = file_mtime(path);
-    if (cache && cache->mtime == now) {
-        return cache->content;
+    if (cache_item && cache_item->mtime == now) {
+        return cache_item->content;
     }
 
     FILE *fp = fopen(path, "r");
@@ -325,10 +325,10 @@ cache_load(const char *path)
     content[len] = 0;
     fclose(fp);
 
-    if (cache) {
-        free(cache->content);
-        cache->content = content;
-        cache->mtime = now;
+    if (cache_item) {
+        free(cache_item->content);
+        cache_item->content = content;
+        cache_item->mtime = now;
     } else if (cache_count < MAX_CACHED) {
         strncpy(cache[cache_count].path, path, PATH_MAX_LEN);
         cache[cache_count].content = content;
@@ -569,40 +569,83 @@ eval_expr(mp_context_t *ctx, const char *expr)
     return parse_expr(ctx, &p);
 }
 
+// uint8_t
+// mp_render_file(mp_context_t *ctx, const char *filename, const char *caller_dir)
+// {
+//     char rel[PATH_MAX_LEN];
+
+//     if (filename[0] == '/' || (strlen(filename) > 2 && filename[1] == ':')) {
+//         strcpy(rel, filename);
+//     } else {
+//         join_path(rel, caller_dir, filename);
+//     }
+    
+//     char absPath[PATH_MAX_LEN];
+//     if (!realpath(rel, absPath)) {
+//         return MP_ERR_FILE_NOT_FOUND;
+//     }
+
+//     if (is_included(absPath)) {
+//         // skipping the cyclic include for the given path
+//         return 0;
+//     }
+
+//     push_include(absPath);
+//     char *content = cache_load(absPath);
+//     if (!content) {
+//         pop_include();
+//         return 0;
+//     }
+
+//     char dir[PATH_MAX_LEN];
+//     dirname_from_path(absPath, dir);
+//     uint8_t ret = mp_render_segment(ctx, content, NULL, dir);
+//     if (ret != 0) {
+//         return ret;
+//     }
+
+//     pop_include();
+
+//     return 0;
+// }
+
 uint8_t
-mp_render_file(mp_context_t *ctx, const char *filename, const char *caller_dir)
-{
-    char rel[PATH_MAX_LEN];
-
-    if (filename[0] == '/' || (strlen(filename) > 2 && filename[1] == ':')) {
-        strcpy(rel, filename);
-    } else {
-        join_path(rel, caller_dir, filename);
-    }
-
+mp_render_file(mp_context_t* ctx, const char* filename, const char* callerDir) {
+    char fullPath[PATH_MAX_LEN];
     char absPath[PATH_MAX_LEN];
-    if (!realpath(rel, absPath)) {
+
+    // Prefer caller directory when file path is relative
+    if (filename[0] == '/' || (strlen(filename) > 2 && filename[1] == ':'))
+        strncpy(fullPath, filename, PATH_MAX_LEN);
+    else
+        join_path(fullPath, callerDir ? callerDir : ".", filename);
+
+    // Normalize to full OS path
+    if (!realpath(fullPath, absPath)) {
+        printf("[Error: include file not found: %s]\n", fullPath);
         return MP_ERR_FILE_NOT_FOUND;
     }
 
+    // Guard against cyclic include
     if (is_included(absPath)) {
-        // skipping the cyclic include for the given path
+        printf("[Skipping cyclic include: %s]\n", absPath);
         return 0;
     }
 
     push_include(absPath);
-    char *content = cache_load(absPath);
+
+    char* content = cache_load(absPath);
     if (!content) {
+        printf("[Error: unable to load include: %s]\n", absPath);
         pop_include();
-        return 0;
+        return 4;
     }
 
+    // Derive relative dir for nested includes
     char dir[PATH_MAX_LEN];
     dirname_from_path(absPath, dir);
-    uint8_t ret = mp_render_segment(ctx, content, NULL, dir);
-    if (ret != 0) {
-        return ret;
-    }
+
+    mp_render_segment(ctx, content, NULL, dir);
 
     pop_include();
 
@@ -757,6 +800,7 @@ mp_render_segment(mp_context_t *ctx,const char *tpl, const char *end, const char
 
             if (!strncmp(token, "include ", 8)) {
                 char fname[256];
+                
                 if (sscanf(token + 8, "\"%255[^\"]\"", fname) == 1) {
                     uint8_t ret = mp_render_file(ctx, fname, base_dir);
                     if (ret != 0) {

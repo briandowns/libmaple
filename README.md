@@ -58,6 +58,14 @@ When linking, make sure to include the math library with `-lm`.
 
   Same syntax usable anywhere, even inside `if` or template output.
 
+### Includes
+
+Additional template files can be loaded from within other templates with the following syntax:
+
+```js
+{{ include "another_template.tmpl" }}
+```
+
 ---
 
 ### Control Flow
