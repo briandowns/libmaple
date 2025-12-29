@@ -258,11 +258,10 @@ test_error_missing_end()
     mp_set_var(ctx, "y", "10");
     mp_set_var(ctx, "z", "20");
     uint8_t ret = mp_render_segment(ctx, ret_buffer, tmpl, NULL, ".");
-
-    fclose(ret_buffer);
-
     CC_ASSERT_UINT8_EQUAL(ret, MP_ERR_MISSING_END_TAG);
     CC_ASSERT_STRING_EQUAL(mp_err_lookup(ret), "missing end tag");
+
+    fclose(ret_buffer);
 
     CC_SUCCESS;
 }

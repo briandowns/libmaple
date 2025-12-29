@@ -704,7 +704,7 @@ mp_render_segment(mp_context_t *ctx, FILE *out, const char *tpl,
                 if (truth) {
                     ret = mp_render_segment(ctx, out, if_start, else_tag ? "{{ else }}" : "{{ end }}", base_dir);
                 } else if (else_tag) {
-                    ret = mp_render_segment(ctx,out, else_tag + strlen("{{ else }}"), "{{ end }}", base_dir);
+                    ret = mp_render_segment(ctx, out, else_tag + strlen("{{ else }}"), "{{ end }}", base_dir);
                 }
                 if (ret != 0) {
                     return ret;
