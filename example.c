@@ -7,7 +7,7 @@
 int
 main(void)
 {
-    mp_context_t *ctx = mp_init(stdout);
+    mp_context_t *ctx = mp_init();
 
     mp_set_var(ctx, "name", "Maple downs");
     mp_set_var(ctx, "x", "5");
@@ -22,7 +22,7 @@ main(void)
         "{{ if (x + y) >= 15 && age < 30 }}Condition True{{ else }}Condition False{{ end }}\n"
         "Loop:\n{{ range items }}- {{ . }}\n{{ end }}\n";
 
-    uint8_t ret = mp_render_segment(ctx, tpl, NULL, ".");
+    uint8_t ret = mp_render_segment(ctx, stdout, tpl, NULL, ".");
     if (ret != 0) {
         printf("%s\n", mp_err_lookup(ret));
         return 1;

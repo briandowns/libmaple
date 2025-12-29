@@ -150,10 +150,9 @@ register_builtin_func(const char *name, mp_func fn)
 }
 
 mp_context_t*
-mp_init(FILE *fp)
+mp_init()
 {
     mp_context_t *ctx = (mp_context_t*)calloc(1, sizeof(mp_context_t));
-    ctx->out = fp;
     ctx->var_count = 0;
 
     register_builtin_func("upper", mp_upper); 
@@ -570,7 +569,9 @@ eval_expr(mp_context_t *ctx, const char *expr)
 }
 
 uint8_t
-mp_render_file(mp_context_t *ctx, const char *filename, const char *caller_dir) {
+mp_render_file(mp_context_t *ctx, FILE *out, const char *filename,
+               const char *caller_dir)
+{
     char full_path[PATH_MAX_LEN];
     char abs_path[PATH_MAX_LEN];
 
@@ -601,7 +602,7 @@ mp_render_file(mp_context_t *ctx, const char *filename, const char *caller_dir) 
     char dir[PATH_MAX_LEN];
     dirname_from_path(abs_path, dir);
 
-    mp_render_segment(ctx, content, NULL, dir);
+    mp_render_segment(ctx, out, content, NULL, dir);
 
     pop_include();
 
@@ -650,7 +651,8 @@ html_escape(const char *s)
  * mp_render_segment
  */
 uint8_t
-mp_render_segment(mp_context_t *ctx,const char *tpl, const char *end, const char *base_dir)
+mp_render_segment(mp_context_t *ctx, FILE *out, const char *tpl, 
+                  const char *end, const char *base_dir)
 {
     const char* p = tpl;
 
@@ -700,9 +702,9 @@ mp_render_segment(mp_context_t *ctx,const char *tpl, const char *end, const char
                 uint8_t ret = 0;
 
                 if (truth) {
-                    ret = mp_render_segment(ctx, if_start, else_tag ? "{{ else }}" : "{{ end }}", base_dir);
+                    ret = mp_render_segment(ctx, out, if_start, else_tag ? "{{ else }}" : "{{ end }}", base_dir);
                 } else if (else_tag) {
-                    ret = mp_render_segment(ctx, else_tag + strlen("{{ else }}"), "{{ end }}", base_dir);
+                    ret = mp_render_segment(ctx, out, else_tag + strlen("{{ else }}"), "{{ end }}", base_dir);
                 }
                 if (ret != 0) {
                     return ret;
@@ -746,7 +748,7 @@ mp_render_segment(mp_context_t *ctx,const char *tpl, const char *end, const char
                 while (it) {
                     trim(it);
                     mp_set_var(ctx, ".", it);
-                    mp_render_segment(ctx, range_start, "{{ end }}", base_dir);
+                    mp_render_segment(ctx, out, range_start, "{{ end }}", base_dir);
                     it = strtok(NULL, ",");
                 }
 
@@ -758,7 +760,7 @@ mp_render_segment(mp_context_t *ctx,const char *tpl, const char *end, const char
                 char fname[256];
                 
                 if (sscanf(token + 8, "\"%255[^\"]\"", fname) == 1) {
-                    uint8_t ret = mp_render_file(ctx, fname, base_dir);
+                    uint8_t ret = mp_render_file(ctx, out, fname, base_dir);
                     if (ret != 0) {
                         return ret;
                     }
@@ -774,7 +776,7 @@ mp_render_segment(mp_context_t *ctx,const char *tpl, const char *end, const char
             if (sscanf(token, "%63s %127[^\n]", func, arg) == 2) {
                 mp_func f = find_func(ctx, func);
                 if (f) {
-                    fprintf(ctx->out, "%s", html_escape(f(get_var(ctx, arg))));
+                    fprintf(out, "%s", html_escape(f(get_var(ctx, arg))));
                     continue;
                 }
             }
@@ -786,9 +788,9 @@ mp_render_segment(mp_context_t *ctx,const char *tpl, const char *end, const char
                 // useless zeros after the decimal point so we determine 
                 // the value is a whole number and cast to int
                 if (floor(result) == ceil(result)) {
-                    fprintf(ctx->out, "%d", (int)result);
+                    fprintf(out, "%d", (int)result);
                 } else {
-                    fprintf(ctx->out, "%.2f", result);
+                    fprintf(out, "%.2f", result);
                 }
             }
             
@@ -798,13 +800,13 @@ mp_render_segment(mp_context_t *ctx,const char *tpl, const char *end, const char
                 while (isspace(*var)) {
                     var++;
                 }
-                fprintf(ctx->out, "%s", get_var(ctx, var));
+                fprintf(out, "%s", get_var(ctx, var));
             } else {
                 const char *val = get_var(ctx, token);
-                fprintf(ctx->out, "%s", html_escape(val));
+                fprintf(out, "%s", html_escape(val));
             }
         } else {
-            fputc(*p++, ctx->out);
+            fputc(*p++, out);
         }
     }
 

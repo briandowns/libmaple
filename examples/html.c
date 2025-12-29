@@ -23,7 +23,7 @@ static const char *tmpl =
 int
 main(void)
 {
-    mp_context_t *ctx = mp_init(stdout);
+    mp_context_t *ctx = mp_init();
 
     mp_set_var(ctx, "site_title", "Pet Favs");
     mp_set_var(ctx, "name", "maple downs");
@@ -31,7 +31,7 @@ main(void)
     mp_set_var(ctx, "items", "Pets, Zoomies, Walks, Ice Cubes");
     mp_set_var(ctx, "raw_html", "<strong>Footer Area</strong>");
 
-    mp_render_segment(ctx, tmpl, NULL, ".");
+    mp_render_segment(ctx, stdout, tmpl, NULL, ".");
 
     mp_free(ctx);
 

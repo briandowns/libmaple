@@ -7,7 +7,7 @@
 int
 main(void)
 {
-    mp_context_t *ctx = mp_init(stdout);
+    mp_context_t *ctx = mp_init();
 
     const char *tmpl =
         "<html><title>{{ site_name }}</title>"
@@ -18,7 +18,7 @@ main(void)
     mp_set_var(ctx, "site_name", "Sky Island");
     mp_set_var(ctx, "footer", "© 2025");
 
-    uint8_t ret = mp_render_segment(ctx, tmpl, NULL, ".");
+    uint8_t ret = mp_render_segment(ctx, stdout, tmpl, NULL, ".");
     if (ret != 0) {
         printf("%s\n", mp_err_lookup(ret));
         return 1;
