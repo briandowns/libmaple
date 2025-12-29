@@ -7,7 +7,7 @@
 int
 main(void)
 {
-    mp_context_t *ctx = mp_init(stdout);
+    mp_context_t *ctx = mp_init();
 
     mp_set_var(ctx, "name", "Maple downs");
     mp_set_var(ctx, "x", "5");
@@ -23,7 +23,7 @@ main(void)
         "Loop:\n{{ range items }}- {{ . }}\n{{ end }}\n";
 
     printf("=== Template Engine with Comparisons ===\n");
-    mp_render_segment(ctx, tmpl, NULL, ".");
+    mp_render_segment(ctx, stdout, tmpl, NULL, ".");
 
     mp_free(ctx);
 

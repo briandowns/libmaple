@@ -16,7 +16,7 @@ void
 cc_setup()
 {
     ret_buffer = fmemopen(output, OUTPUT_BUF_SIZE, "w");
-    ctx = mp_init(ret_buffer);
+    ctx = mp_init();
 }
 
 void
@@ -32,7 +32,7 @@ test_internal_func_lower()
     const char *tmpl = "{{ lower name }}";
 
     mp_set_var(ctx, "name", "MAPLE");
-    uint8_t ret = mp_render_segment(ctx, tmpl, NULL, ".");
+    uint8_t ret = mp_render_segment(ctx, ret_buffer, tmpl, NULL, ".");
     CC_ASSERT_UINT8_EQUAL(ret, 0);
 
     fclose(ret_buffer);
@@ -48,7 +48,7 @@ test_internal_func_upper()
     const char *tmpl = "{{ upper name }}";
 
     mp_set_var(ctx, "name", "maple");
-    uint8_t ret = mp_render_segment(ctx, tmpl, NULL, ".");
+    uint8_t ret = mp_render_segment(ctx, ret_buffer, tmpl, NULL, ".");
     CC_ASSERT_UINT8_EQUAL(ret, 0);
 
     fclose(ret_buffer);
@@ -64,7 +64,7 @@ test_internal_func_title()
     const char *tmpl = "{{ title name }}";
 
     mp_set_var(ctx, "name", "maple downs");
-    uint8_t ret = mp_render_segment(ctx, tmpl, NULL, ".");
+    uint8_t ret = mp_render_segment(ctx, ret_buffer, tmpl, NULL, ".");
     CC_ASSERT_UINT8_EQUAL(ret, 0);
 
     fclose(ret_buffer);
@@ -80,7 +80,7 @@ test_internal_func_reverse()
     const char *tmpl = "{{ reverse name }}";
 
     mp_set_var(ctx, "name", "maple");
-    uint8_t ret = mp_render_segment(ctx, tmpl, NULL, ".");
+    uint8_t ret = mp_render_segment(ctx, ret_buffer, tmpl, NULL, ".");
     CC_ASSERT_UINT8_EQUAL(ret, 0);
 
     fclose(ret_buffer);
@@ -95,7 +95,7 @@ test_arithmetic_order_of_ops_int()
 {
     const char *tmpl = "{{ 5 + 2 * 3 }}";
     mp_set_var(ctx, "name", "maple downs");
-    uint8_t ret = mp_render_segment(ctx, tmpl, NULL, ".");
+    uint8_t ret = mp_render_segment(ctx, ret_buffer, tmpl, NULL, ".");
     CC_ASSERT_UINT8_EQUAL(ret, 0);
 
     fclose(ret_buffer);
@@ -110,7 +110,7 @@ test_arithmetic_order_of_ops_double()
 {
     const char *tmpl = "{{ 5.8 + 6 / 3 }}";
     mp_set_var(ctx, "name", "maple downs");
-    uint8_t ret = mp_render_segment(ctx, tmpl, NULL, ".");
+    uint8_t ret = mp_render_segment(ctx, ret_buffer, tmpl, NULL, ".");
     CC_ASSERT_UINT8_EQUAL(ret, 0);
 
     fclose(ret_buffer);
@@ -126,7 +126,7 @@ test_comp_equals()
     const char *tmpl = "{{ if x == y }}true{{ else }}false{{ end }}";
     mp_set_var(ctx, "x", "10");
     mp_set_var(ctx, "y", "20");
-    uint8_t ret = mp_render_segment(ctx, tmpl, NULL, ".");
+    uint8_t ret = mp_render_segment(ctx, ret_buffer, tmpl, NULL, ".");
     CC_ASSERT_UINT8_EQUAL(ret, 0);
 
     fclose(ret_buffer);
@@ -142,7 +142,7 @@ test_comp_not_equals()
     const char *tmpl = "{{ if x != y }}true{{ else }}false{{ end }}";
     mp_set_var(ctx, "x", "10");
     mp_set_var(ctx, "y", "20");
-    uint8_t ret = mp_render_segment(ctx, tmpl, NULL, ".");
+    uint8_t ret = mp_render_segment(ctx, ret_buffer, tmpl, NULL, ".");
     CC_ASSERT_UINT8_EQUAL(ret, 0);
 
     fclose(ret_buffer);
@@ -158,7 +158,7 @@ test_comp_gt()
     const char *tmpl = "{{ if x > y }}true{{ else }}false{{ end }}";
     mp_set_var(ctx, "x", "10");
     mp_set_var(ctx, "y", "20");
-    uint8_t ret = mp_render_segment(ctx, tmpl, NULL, ".");
+    uint8_t ret = mp_render_segment(ctx, ret_buffer, tmpl, NULL, ".");
     CC_ASSERT_UINT8_EQUAL(ret, 0);
 
     fclose(ret_buffer);
@@ -174,7 +174,7 @@ test_comp_lt()
     const char *tmpl = "{{ if x < y }}true{{ else }}false{{ end }}";
     mp_set_var(ctx, "x", "10");
     mp_set_var(ctx, "y", "20");
-    uint8_t ret = mp_render_segment(ctx, tmpl, NULL, ".");
+    uint8_t ret = mp_render_segment(ctx, ret_buffer, tmpl, NULL, ".");
     CC_ASSERT_UINT8_EQUAL(ret, 0);
 
     fclose(ret_buffer);
@@ -190,7 +190,7 @@ test_comp_gt_eq()
     const char *tmpl = "{{ if x >= y }}true{{ else }}false{{ end }}";
     mp_set_var(ctx, "x", "10");
     mp_set_var(ctx, "y", "10");
-    uint8_t ret = mp_render_segment(ctx, tmpl, NULL, ".");
+    uint8_t ret = mp_render_segment(ctx, ret_buffer, tmpl, NULL, ".");
     CC_ASSERT_UINT8_EQUAL(ret, 0);
 
     fclose(ret_buffer);
@@ -206,7 +206,7 @@ test_comp_lt_eq()
     const char *tmpl = "{{ if x <= y }}true{{ else }}false{{ end }}";
     mp_set_var(ctx, "x", "10");
     mp_set_var(ctx, "y", "10");
-    uint8_t ret = mp_render_segment(ctx, tmpl, NULL, ".");
+    uint8_t ret = mp_render_segment(ctx, ret_buffer, tmpl, NULL, ".");
     CC_ASSERT_UINT8_EQUAL(ret, 0);
 
     fclose(ret_buffer);
@@ -223,7 +223,7 @@ test_boolean_and()
     mp_set_var(ctx, "x", "10");
     mp_set_var(ctx, "y", "10");
     mp_set_var(ctx, "z", "20");
-    uint8_t ret = mp_render_segment(ctx, tmpl, NULL, ".");
+    uint8_t ret = mp_render_segment(ctx, ret_buffer, tmpl, NULL, ".");
     CC_ASSERT_UINT8_EQUAL(ret, 0);
 
     fclose(ret_buffer);
@@ -240,7 +240,7 @@ test_boolean_or()
     mp_set_var(ctx, "x", "10");
     mp_set_var(ctx, "y", "10");
     mp_set_var(ctx, "z", "20");
-    uint8_t ret = mp_render_segment(ctx, tmpl, NULL, ".");
+    uint8_t ret = mp_render_segment(ctx, ret_buffer, tmpl, NULL, ".");
     CC_ASSERT_UINT8_EQUAL(ret, 0);
 
     fclose(ret_buffer);
@@ -257,11 +257,12 @@ test_error_missing_end()
     mp_set_var(ctx, "x", "10");
     mp_set_var(ctx, "y", "10");
     mp_set_var(ctx, "z", "20");
-    uint8_t ret = mp_render_segment(ctx, tmpl, NULL, ".");
-    CC_ASSERT_UINT8_EQUAL(ret, MP_ERR_MISSING_END_TAG);
-    CC_ASSERT_STRING_EQUAL(mp_err_lookup(ret), "missing end tag");
+    uint8_t ret = mp_render_segment(ctx, ret_buffer, tmpl, NULL, ".");
 
     fclose(ret_buffer);
+
+    CC_ASSERT_UINT8_EQUAL(ret, MP_ERR_MISSING_END_TAG);
+    CC_ASSERT_STRING_EQUAL(mp_err_lookup(ret), "missing end tag");
 
     CC_SUCCESS;
 }

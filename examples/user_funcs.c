@@ -19,7 +19,7 @@ triple(char *s)
 int
 main(void)
 {
-    mp_context_t *ctx = mp_init(stdout);
+    mp_context_t *ctx = mp_init();
     mp_register_func(ctx, "triple", triple);
 
     mp_set_var(ctx, "x", "5");
@@ -29,7 +29,7 @@ main(void)
         "It takes a number and triples it.\n"
         "Number x, tripled is {{ triple x }}\n";
 
-    mp_render_segment(ctx, tmpl, NULL, ".");
+    mp_render_segment(ctx, stdout, tmpl, NULL, ".");
 
     mp_free(ctx);
 

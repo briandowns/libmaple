@@ -17,13 +17,13 @@ static const char *tmpl =
 int
 main(void)
 {
-    mp_context_t *ctx = mp_init(stdout);
+    mp_context_t *ctx = mp_init();
 
     mp_set_var(ctx, "name", "maple downs");
     mp_set_var(ctx, "is_subscribed", "1");
     mp_set_var(ctx, "product_list", "Pets, Zoomies, Walks, Ice Cubes");
 
-    mp_render_segment(ctx, tmpl, NULL, ".");
+    mp_render_segment(ctx, stdout, tmpl, NULL, ".");
 
     mp_free(ctx);
 

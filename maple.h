@@ -81,14 +81,13 @@ typedef struct {
     var_t vars[MAX_VARS];
     int var_count;
     function_registry_t user_func_registry;
-    FILE *out;
 } mp_context_t;
 
 /**
  * mp_init setups the library.
  */
 mp_context_t*
-mp_init(FILE *fp);
+mp_init();
 
 /**
  * mp_free frees the used memory for the fiven context.
@@ -117,15 +116,15 @@ mp_register_func(mp_context_t *ctx, const char *name, mp_func fn);
  * the relative path.
  */
 uint8_t
-mp_render_segment(mp_context_t *ctx, const char *tpl, const char *end,
-                  const char *base_dir);
+mp_render_segment(mp_context_t *ctx, FILE *out, const char *tpl, 
+                  const char *end, const char *base_dir);
 
 /**
  * mp_render_file renders the given file with the seeded values in the provided
  * context.
  */
 uint8_t
-mp_render_file(mp_context_t *ctx, const char *filename,
+mp_render_file(mp_context_t *ctx, FILE *out, const char *filename,
                const char *caller_dir);
 
 /**
