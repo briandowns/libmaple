@@ -654,7 +654,7 @@ uint8_t
 mp_render_segment(mp_context_t *ctx, FILE *out, const char *tpl, 
                   const char *end, const char *base_dir)
 {
-    const char* p = tpl;
+    const char *p = tpl;
 
     while (*p && (!end || strncmp(p, end, strlen(end)) != 0)) {
         if (*p == '{' && *(p + 1) == '{') {
@@ -823,6 +823,8 @@ mp_err_lookup(const uint8_t code)
             return "invalid include syntax";
         case MP_ERR_MISSING_END_TAG:
             return "missing end tag";
+        case MP_ERR_UNABLE_TO_LOAD_INCLUDE:
+            return "unable to load include";
         default:
             return "unknown error code";
     }
