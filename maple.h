@@ -25,12 +25,12 @@
  * SUCH DAMAGE.
  */
 
+#ifndef __MAPLE_H
+#define __MAPLE_H
+
 #ifdef __cplusplus
 extern "C" {
 #endif
- 
-#ifndef __MAPLE_H
-#define __MAPLE_H
 
 #include <stdint.h>
 #include <stdio.h>
@@ -110,14 +110,14 @@ void
 mp_register_func(mp_context_t *ctx, const char *name, mp_func fn);
 
 /**
- * mp_render_segment renders the given template with the seeded values in the
+ * mp_render renders the given template with the seeded values in the
  * provided context. The "base_dir" variable is the relative location of the 
  * template to the executable. If not in the same directory, populate this with
  * the relative path.
  */
 uint8_t
-mp_render_segment(mp_context_t *ctx, FILE *out, const char *tpl, 
-                  const char *end, const char *base_dir);
+mp_render(mp_context_t *ctx, FILE *out, const char *tpl, const char *end,
+          const char *base_dir);
 
 /**
  * mp_render_file renders the given file with the seeded values in the provided
@@ -133,7 +133,7 @@ mp_render_file(mp_context_t *ctx, FILE *out, const char *filename,
 const char*
 mp_err_lookup(const uint8_t code);
 
-#endif /** end __MAPLE_H */
 #ifdef __cplusplus
 }
 #endif
+#endif /** end __MAPLE_H */
