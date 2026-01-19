@@ -802,11 +802,11 @@ mp_render(mp_context_t *ctx, uint8_t *out_buf, uint64_t buf_size, const char *tp
                 // the value is a whole number and cast to int
                 if (floor(result) == ceil(result)) {
                     //fprintf(out, "%d", (int)result);
-                    snprintf((char*)out_buf + offset, buf_size - offset, "%d", (int)result);
+                    snprintf((char*)out_buf + offset, buf_size, "%d", (int)result);
                     offset += strlen((char*)out_buf + offset);
                 } else {
                     //fprintf(out, "%.2f", result);
-                    snprintf((char*)out_buf + offset, buf_size - offset, "%.2f", result);
+                    snprintf((char*)out_buf + offset, buf_size, "%.2f", result);
                     offset += strlen((char*)out_buf + offset);
                 }
             }
