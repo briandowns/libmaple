@@ -29,7 +29,7 @@ main(void)
         "It takes a number and triples it.\n"
         "Number x, tripled is {{ triple x }}\n";
 
-    mp_render_segment(ctx, stdout, tmpl, NULL, ".");
+    mp_render(ctx, stdout, tmpl, NULL, ".");
 
     mp_free(ctx);
 

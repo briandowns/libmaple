@@ -568,8 +568,8 @@ eval_expr(mp_context_t *ctx, const char *expr)
     return parse_expr(ctx, &p);
 }
 
-uint8_t
-mp_render_file(mp_context_t *ctx, FILE *out, const char *filename,
+uint64_t
+mp_render_file(mp_context_t *ctx, uint8_t *out_buf, uint64_t buf_size, const char *filename,
                const char *caller_dir)
 {
     char full_path[PATH_MAX_LEN];
@@ -602,7 +602,7 @@ mp_render_file(mp_context_t *ctx, FILE *out, const char *filename,
     char dir[PATH_MAX_LEN];
     dirname_from_path(abs_path, dir);
 
-    mp_render(ctx, out, content, NULL, dir);
+    mp_render(ctx, out_buf, buf_size, content, NULL, dir);
 
     pop_include();
 
@@ -647,10 +647,17 @@ html_escape(const char *s)
     return buf;
 }
 
-uint8_t
-mp_render(mp_context_t *ctx, FILE *out, const char *tpl, 
-                  const char *end, const char *base_dir)
+uint64_t
+mp_render(mp_context_t *ctx, uint8_t *out_buf, uint64_t buf_size, const char *tpl,
+          const char *end, const char *base_dir)
 {
+    if (out_buf == NULL || buf_size == 0 || strlen(tpl) == 0 || strlen(tpl) >= buf_size) {
+        // Error: invalid parameters / buffer too small / empty template / null buffer
+        return 0;
+    }
+
+    uint64_t offset = 0;
+
     const char *p = tpl;
 
     while (*p && (!end || strncmp(p, end, strlen(end)) != 0)) {
@@ -699,9 +706,9 @@ mp_render(mp_context_t *ctx, FILE *out, const char *tpl,
                 uint8_t ret = 0;
 
                 if (truth) {
-                    ret = mp_render(ctx, out, if_start, else_tag ? "{{ else }}" : "{{ end }}", base_dir);
+                    ret = mp_render(ctx, out_buf, buf_size, if_start, else_tag ? "{{ else }}" : "{{ end }}", base_dir);
                 } else if (else_tag) {
-                    ret = mp_render(ctx, out, else_tag + strlen("{{ else }}"), "{{ end }}", base_dir);
+                    ret = mp_render(ctx, out_buf, buf_size, else_tag + strlen("{{ else }}"), "{{ end }}", base_dir);
                 }
                 if (ret != 0) {
                     return ret;
@@ -745,7 +752,7 @@ mp_render(mp_context_t *ctx, FILE *out, const char *tpl,
                 while (it) {
                     trim(it);
                     mp_set_var(ctx, ".", it);
-                    mp_render(ctx, out, range_start, "{{ end }}", base_dir);
+                    mp_render(ctx, out_buf, buf_size, range_start, "{{ end }}", base_dir);
                     it = strtok(NULL, ",");
                 }
 
@@ -757,7 +764,7 @@ mp_render(mp_context_t *ctx, FILE *out, const char *tpl,
                 char fname[256];
                 
                 if (sscanf(token + 8, "\"%255[^\"]\"", fname) == 1) {
-                    uint8_t ret = mp_render_file(ctx, out, fname, base_dir);
+                    uint8_t ret = mp_render_file(ctx, out_buf, buf_size, fname, base_dir);
                     if (ret != 0) {
                         return ret;
                     }
@@ -773,7 +780,16 @@ mp_render(mp_context_t *ctx, FILE *out, const char *tpl,
             if (sscanf(token, "%63s %127[^\n]", func, arg) == 2) {
                 mp_func f = find_func(ctx, func);
                 if (f) {
-                    fprintf(out, "%s", html_escape(f(get_var(ctx, arg))));
+                    //fprintf(out, "%s", html_escape(f(get_var(ctx, arg))));
+                    if (offset + buf_size > buf_size) {
+                        // ERROR: buffer overflow
+                        return 0;
+                    }
+
+                    const char *escaped = html_escape(f(get_var(ctx, arg)));
+                    memcpy(out_buf + offset, escaped, buf_size - offset);
+                    offset += strlen(escaped);
+
                     continue;
                 }
             }
@@ -785,9 +801,13 @@ mp_render(mp_context_t *ctx, FILE *out, const char *tpl,
                 // useless zeros after the decimal point so we determine 
                 // the value is a whole number and cast to int
                 if (floor(result) == ceil(result)) {
-                    fprintf(out, "%d", (int)result);
+                    //fprintf(out, "%d", (int)result);
+                    snprintf((char*)out_buf + offset, buf_size - offset, "%d", (int)result);
+                    offset += strlen((char*)out_buf + offset);
                 } else {
-                    fprintf(out, "%.2f", result);
+                    //fprintf(out, "%.2f", result);
+                    snprintf((char*)out_buf + offset, buf_size - offset, "%.2f", result);
+                    offset += strlen((char*)out_buf + offset);
                 }
             }
             
@@ -797,13 +817,20 @@ mp_render(mp_context_t *ctx, FILE *out, const char *tpl,
                 while (isspace(*var)) {
                     var++;
                 }
-                fprintf(out, "%s", get_var(ctx, var));
+                //fprintf(out, "%s", get_var(ctx, var));
+                const char *val = get_var(ctx, var);
+                memcpy(out_buf + offset, val, buf_size - offset);
+                offset += strlen(val);
             } else {
                 const char *val = get_var(ctx, token);
-                fprintf(out, "%s", html_escape(val));
+                //fprintf(out, "%s", html_escape(val));
+                const char *escaped = html_escape(val);
+                memcpy(out_buf + offset, escaped, buf_size - offset);
+                offset += strlen(escaped);
             }
         } else {
-            fputc(*p++, out);
+            //fputc(*p++, out);
+            out_buf[offset++] = *p++;
         }
     }
 

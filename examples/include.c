@@ -18,7 +18,7 @@ main(void)
     mp_set_var(ctx, "site_name", "Sky Island");
     mp_set_var(ctx, "footer", "© 2025");
 
-    uint8_t ret = mp_render_segment(ctx, stdout, tmpl, NULL, ".");
+    uint8_t ret = mp_render(ctx, stdout, tmpl, NULL, ".");
     if (ret != 0) {
         printf("%s\n", mp_err_lookup(ret));
         return 1;

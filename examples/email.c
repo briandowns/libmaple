@@ -23,7 +23,7 @@ main(void)
     mp_set_var(ctx, "is_subscribed", "1");
     mp_set_var(ctx, "product_list", "Pets, Zoomies, Walks, Ice Cubes");
 
-    mp_render_segment(ctx, stdout, tmpl, NULL, ".");
+    mp_render(ctx, stdout, tmpl, NULL, ".");
 
     mp_free(ctx);
 

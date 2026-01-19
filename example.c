@@ -22,11 +22,13 @@ main(void)
         "{{ if (x + y) >= 15 && age < 30 }}Condition True{{ else }}Condition False{{ end }}\n"
         "Loop:\n{{ range items }}- {{ . }}\n{{ end }}\n";
 
-    uint8_t ret = mp_render_segment(ctx, stdout, tpl, NULL, ".");
+    uint8_t buf[4096];
+    uint8_t ret = mp_render(ctx, buf, sizeof(buf), tpl, NULL, ".");
     if (ret != 0) {
         printf("%s\n", mp_err_lookup(ret));
         return 1;
     }
+    printf("%s\n", buf);
 
     mp_free(ctx);
 

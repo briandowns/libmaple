@@ -23,7 +23,7 @@ main(void)
         "Loop:\n{{ range items }}- {{ . }}\n{{ end }}\n";
 
     printf("=== Template Engine with Comparisons ===\n");
-    mp_render_segment(ctx, stdout, tmpl, NULL, ".");
+    mp_render(ctx, stdout, tmpl, NULL, NULL);
 
     mp_free(ctx);
 

@@ -115,17 +115,17 @@ mp_register_func(mp_context_t *ctx, const char *name, mp_func fn);
  * template to the executable. If not in the same directory, populate this with
  * the relative path.
  */
-uint8_t
-mp_render(mp_context_t *ctx, FILE *out, const char *tpl, const char *end,
-          const char *base_dir);
+uint64_t
+mp_render(mp_context_t *ctx, uint8_t *out_buf, uint64_t buf_size, const char *tpl,
+          const char *end, const char *base_dir);
 
 /**
  * mp_render_file renders the given file with the seeded values in the provided
  * context.
  */
-uint8_t
-mp_render_file(mp_context_t *ctx, FILE *out, const char *filename,
-               const char *caller_dir);
+uint64_t
+mp_render_file(mp_context_t *ctx, uint8_t *out_buf, uint64_t buf_size,
+               const char *filename, const char *caller_dir);
 
 /**
  * mp_err_lookup gets the error string for the given error code.

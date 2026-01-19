@@ -31,7 +31,7 @@ main(void)
     mp_set_var(ctx, "items", "Pets, Zoomies, Walks, Ice Cubes");
     mp_set_var(ctx, "raw_html", "<strong>Footer Area</strong>");
 
-    mp_render_segment(ctx, stdout, tmpl, NULL, ".");
+    mp_render(ctx, stdout, tmpl, NULL, ".");
 
     mp_free(ctx);
 
