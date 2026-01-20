@@ -707,12 +707,14 @@ mp_render(mp_context_t *ctx, uint8_t *out_buf, uint64_t buf_size, const char *tp
 
                 if (truth) {
                     ret = mp_render(ctx, out_buf, buf_size, if_start, else_tag ? "{{ else }}" : "{{ end }}", base_dir);
+                    offset += ret;
                 } else if (else_tag) {
                     ret = mp_render(ctx, out_buf, buf_size, else_tag + strlen("{{ else }}"), "{{ end }}", base_dir);
+                    offset += ret;
                 }
-                if (ret != 0) {
-                    return ret;
-                }
+                // if (ret != 0) {
+                //     return ret;
+                // }
 
                 p = end_tag + strlen("{{ end }}");
                 continue;
@@ -752,7 +754,8 @@ mp_render(mp_context_t *ctx, uint8_t *out_buf, uint64_t buf_size, const char *tp
                 while (it) {
                     trim(it);
                     mp_set_var(ctx, ".", it);
-                    mp_render(ctx, out_buf, buf_size, range_start, "{{ end }}", base_dir);
+                    uint64_t ret = mp_render(ctx, out_buf, buf_size, range_start, "{{ end }}", base_dir);
+                    offset += ret;
                     it = strtok(NULL, ",");
                 }
 
@@ -764,7 +767,7 @@ mp_render(mp_context_t *ctx, uint8_t *out_buf, uint64_t buf_size, const char *tp
                 char fname[256];
                 
                 if (sscanf(token + 8, "\"%255[^\"]\"", fname) == 1) {
-                    uint8_t ret = mp_render_file(ctx, out_buf, buf_size, fname, base_dir);
+                    uint64_t ret = mp_render_file(ctx, out_buf, buf_size, fname, base_dir);
                     if (ret != 0) {
                         return ret;
                     }
@@ -781,13 +784,19 @@ mp_render(mp_context_t *ctx, uint8_t *out_buf, uint64_t buf_size, const char *tp
                 mp_func f = find_func(ctx, func);
                 if (f) {
                     //fprintf(out, "%s", html_escape(f(get_var(ctx, arg))));
-                    if (offset + buf_size > buf_size) {
+                    // if (offset + buf_size > buf_size) {
+                    //     printf("XXX - %ld %ld\n", offset, buf_size);
+                    //     // ERROR: buffer overflow
+                    //     return 0;
+                    // }
+                    if (offset >= buf_size) {
                         // ERROR: buffer overflow
                         return 0;
                     }
 
                     const char *escaped = html_escape(f(get_var(ctx, arg)));
-                    memcpy(out_buf + offset, escaped, buf_size - offset);
+                    //memcpy(out_buf + offset, escaped, strlen(escaped)+1);
+                    snprintf((char*)out_buf + offset, buf_size - offset, "%s", escaped);
                     offset += strlen(escaped);
 
                     continue;
@@ -802,11 +811,11 @@ mp_render(mp_context_t *ctx, uint8_t *out_buf, uint64_t buf_size, const char *tp
                 // the value is a whole number and cast to int
                 if (floor(result) == ceil(result)) {
                     //fprintf(out, "%d", (int)result);
-                    snprintf((char*)out_buf + offset, buf_size, "%d", (int)result);
+                    snprintf((char*)out_buf + offset, buf_size - offset, "%d", (int)result);
                     offset += strlen((char*)out_buf + offset);
                 } else {
                     //fprintf(out, "%.2f", result);
-                    snprintf((char*)out_buf + offset, buf_size, "%.2f", result);
+                    snprintf((char*)out_buf + offset, buf_size - offset, "%.2f", result);
                     offset += strlen((char*)out_buf + offset);
                 }
             }
@@ -834,7 +843,7 @@ mp_render(mp_context_t *ctx, uint8_t *out_buf, uint64_t buf_size, const char *tp
         }
     }
 
-    return 0;
+    return offset;
 }
 
 const char*

@@ -23,12 +23,12 @@ main(void)
         "Loop:\n{{ range items }}- {{ . }}\n{{ end }}\n";
 
     uint8_t buf[4096];
-    uint8_t ret = mp_render(ctx, buf, sizeof(buf), tpl, NULL, ".");
-    if (ret != 0) {
-        printf("%s\n", mp_err_lookup(ret));
-        return 1;
-    }
-    printf("%s\n", buf);
+    uint64_t ret = mp_render(ctx, buf, sizeof(buf), tpl, NULL, ".");
+    // if (ret != 0) {
+    //     printf("%s\n", mp_err_lookup(ret));
+    //     return 1;
+    // }
+    printf("%s - %ld\n", buf, ret);
 
     mp_free(ctx);
 
