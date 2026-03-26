@@ -1,6 +1,7 @@
-CC = cc
+CC = clang-20
 
-CFLAGS  = -std=c99 -O3 -Wall 
+CFLAGS  = -O3 -Wall -Wextra -fPIC -O3
+TEST_CFLAGS  = -g -Wall -Wextra
 LDFLAGS = -lm
 
 NAME    = libmaple
@@ -41,11 +42,16 @@ ifeq ($(UNAME_S),Darwin)
 	rm -f $(INCDIR)/$(NAME).dylib
 endif
 
-.PHONY: test
-test: clean
-	$(CC) -g -o tests/tests maple.c tests/tests.c tests/crosscheck.c $(LDFLAGS)
+.PHONY: tests
+tests: clean
+	$(CC) -g -o tests/tests maple.c tests/tests.c tests/crosscheck.c $(TEST_CFLAGS) $(LDFLAGS)
 	tests/tests
 	rm -f tests/tests
+
+.PHONY: valgrind
+valgrind: tests
+#valgrind --leak-check=full --show-leak-kinds=all --track-origins=yes --tool=memcheck ./tests/tests 2>&1 | awk -F':' '/definitely lost:/ {print $2}'
+	valgrind --leak-check=full --show-leak-kinds=all --track-origins=yes --tool=memcheck ./tests/tests
 
 .PHONY: clean
 clean:
@@ -56,4 +62,4 @@ clean:
 
 .PHONY: example
 example: clean
-	$(CC) -g -o $@ maple.c examples/all.c $(LDFLAGS)
+	$(CC) -g -o $@ maple.c examples/all.c $(CFLAGS) $(LDFLAGS)
