@@ -22,7 +22,7 @@ jobs:
       run: sudo apt install -y make build-essential
     - name: run tests
       run: |
-        make test    
+        make tests
     - name: Compile and run
       run: |
         make && make example
