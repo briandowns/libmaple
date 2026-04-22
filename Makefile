@@ -1,4 +1,4 @@
-CC = clang-20
+CC = cc
 
 CFLAGS  = -O3 -Wall -Wextra -fPIC -O3
 TEST_CFLAGS  = -g -Wall -Wextra
@@ -16,7 +16,7 @@ ifeq ($(UNAME_S),Darwin)
 $(NAME).dylib: clean
 	$(CC) -c -dynamiclib -o $@ $(CFLAGS) $(LDFLAGS)
 endif
-ifeq ($(UNAME_S),Linux)
+ifeq ($(UNAME_S),Linux FreeBSD)
 $(NAME).so: clean
 	$(CC) -shared -o $@ $(CFLAGS) $(LDFLAGS)
 endif
@@ -46,12 +46,11 @@ endif
 tests: clean
 	$(CC) -g -o tests/tests maple.c tests/tests.c tests/crosscheck.c $(TEST_CFLAGS) $(LDFLAGS)
 	tests/tests
-	rm -f tests/tests
 
 .PHONY: valgrind
 valgrind: tests
 #valgrind --leak-check=full --show-leak-kinds=all --track-origins=yes --tool=memcheck ./tests/tests 2>&1 | awk -F':' '/definitely lost:/ {print $2}'
-	valgrind --leak-check=full --show-leak-kinds=all --track-origins=yes --tool=memcheck ./tests/tests
+	valgrind -s --leak-check=full --show-leak-kinds=all --track-origins=yes --tool=memcheck ./tests/tests
 
 .PHONY: clean
 clean:
