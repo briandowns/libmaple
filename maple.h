@@ -49,8 +49,8 @@ extern "C" {
  * var_t holds all variables stored in key/value pairs.
  */
 typedef struct {
-    char key[MAX_VAR_NAME_LEN];
-    char value[MAX_VAR_VAL_LEN];
+    char key[MAX_VARS];
+    char value[MAX_VARS];
 } var_t;
 
 /**

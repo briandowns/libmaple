@@ -144,11 +144,18 @@ static void
 register_builtin_func(const char *name, mp_func fn)
 {
     if (builtin_func_registry.count < MAX_FUNCS) {
+#ifdef __FreeBSD__
+        strlcpy(builtin_func_registry.funcs[builtin_func_registry.count].name,
+            name, MAX_VAR_NAME_LEN);
+#else
         strncpy(builtin_func_registry.funcs[builtin_func_registry.count].name,
             name, MAX_VAR_NAME_LEN);
+#endif
         builtin_func_registry.funcs[builtin_func_registry.count].fn = fn;
         builtin_func_registry.count++;
     }
+
+    printf("XXX - registering user func: %s\n", name);
 }
 
 mp_context_t*
@@ -180,17 +187,17 @@ mp_set_var(mp_context_t *ctx, const char *name, const char *val)
         return 1;
     }
 
-    if (!IS_NULL_TERMINATED(name, MAX_VAR_NAME_LEN) || \
-        !IS_NULL_TERMINATED(val, MAX_VAR_VAL_LEN)) {
+    if (!IS_NULL_TERMINATED(name, strlen(name) + 1) || \
+        !IS_NULL_TERMINATED(val, strlen(val) + 1)) {
         return 1;
     }
 
     for (uint64_t i = 0; i < ctx->var_count; i++) {
-        if (!strcmp(ctx->vars[i].key, name)) {
+        if (strcmp(ctx->vars[i].key, name) == 0) {
 #ifdef __FreeBSD__
-            strlcpy(ctx->vars[i].value, val, MAX_VAR_VAL_LEN);
+            strlcpy(ctx->vars[i].value, val, MAX_VARS);
 #else
-            strncpy(ctx->vars[i].value, val, MAX_VAR_VAL_LEN);
+            strncpy(ctx->vars[i].value, val, MAX_VARS);
 #endif
             return 0;
         }
@@ -198,11 +205,11 @@ mp_set_var(mp_context_t *ctx, const char *name, const char *val)
         
     if (ctx->var_count < MAX_VARS) {
 #ifdef __FreeBSD__
-        strlcpy(ctx->vars[ctx->var_count].key, name, MAX_VAR_NAME_LEN);
-        strlcpy(ctx->vars[ctx->var_count].value, val, MAX_VAR_VAL_LEN);
+        strlcpy(ctx->vars[ctx->var_count].key, name, MAX_VARS);
+        strlcpy(ctx->vars[ctx->var_count].value, val, MAX_VARS);
 #else
-        strncpy(ctx->vars[ctx->var_count].key, name, MAX_VAR_NAME_LEN);
-        strncpy(ctx->vars[ctx->var_count].value, val, MAX_VAR_VAL_LEN);
+        strncpy(ctx->vars[ctx->var_count].key, name, MAX_VARS);
+        strncpy(ctx->vars[ctx->var_count].value, val, MAX_VARS);
 #endif
         ctx->var_count++;
     }
@@ -213,8 +220,10 @@ mp_set_var(mp_context_t *ctx, const char *name, const char *val)
 char*
 get_var(mp_context_t *ctx, const char *key)
 {
+    printf("XXX - looking up var: %s\n", key);
     for (uint64_t i = 0; i < ctx->var_count; i++) {
-        if (!strcmp(ctx->vars[i].key, key)) {
+        if (strcmp(ctx->vars[i].key, key) == 0) {
+            printf("XXX - found var: %s = %s\n", key, ctx->vars[i].value);
             return ctx->vars[i].value;
         }
     }
@@ -258,12 +267,14 @@ find_func(mp_context_t *ctx, const char *name)
 {
     for (uint8_t i = 0; i < ctx->user_func_registry.count; i++) {
         if (!strcmp(ctx->user_func_registry.funcs[i].name, name)) {
+            printf("XXX - found user func: %s\n", name);
             return ctx->user_func_registry.funcs[i].fn;
         }
     }
 
     for (uint8_t i = 0; i < builtin_func_registry.count; i++) {
-        if (!strcmp(builtin_func_registry.funcs[i].name, name)) {
+        if (strcmp(builtin_func_registry.funcs[i].name, name) == 0) {
+            printf("XXX - found builtin func: %s\n", name);
             return builtin_func_registry.funcs[i].fn;
         }
     }
@@ -271,7 +282,7 @@ find_func(mp_context_t *ctx, const char *name)
     return NULL;
 }
 
-/* file & cache handling */
+// file & cache handling
 
 /**
  * dirname_from_path gets the directory name from the given path.
@@ -378,7 +389,7 @@ cache_load(const char *path)
     return content;
 }
 
-/* include guards */
+// include guards
 
 /**
  * is_included checks to see if a template file at the given path has
@@ -418,7 +429,7 @@ pop_include()
     }
 }
 
-/* expression parser with comparisons */
+// expression parser with comparisons
 
 // forward declaration for simplicity
 static double
@@ -816,7 +827,9 @@ mp_render_segment(mp_context_t *ctx, FILE *out, const char *tpl,
             if (sscanf(token, "%63s %127[^\n]", func, arg) == 2) {
                 mp_func f = find_func(ctx, func);
                 if (f) {
+                    printf("XXX - running func: %s\n", func);
                     fprintf(out, "%s", html_escape(f(get_var(ctx, arg))));
+                    printf("XXX - finished running func: %s - var %s\n", func, get_var(ctx, arg));
                     continue;
                 }
             }
