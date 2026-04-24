@@ -42,6 +42,8 @@
 #define MAX_CACHED        64
 #define MAX_INCLUDE_STACK 32 
 
+#define IS_NULL_TERMINATED(str, max_len) ((str)[(max_len) - 1] == '\0')
+
 /**
  * cached_template_t 
  */
@@ -171,11 +173,16 @@ mp_free(mp_context_t *ctx)
     }
 }
 
-void
+uint8_t
 mp_set_var(mp_context_t *ctx, const char *name, const char *val)
 {
     if (name == NULL || val == NULL) {
-        return;
+        return 1;
+    }
+
+    if (!IS_NULL_TERMINATED(name, MAX_VAR_NAME_LEN) || \
+        !IS_NULL_TERMINATED(val, MAX_VAR_VAL_LEN)) {
+        return 1;
     }
 
     for (uint64_t i = 0; i < ctx->var_count; i++) {
@@ -185,7 +192,7 @@ mp_set_var(mp_context_t *ctx, const char *name, const char *val)
 #else
             strncpy(ctx->vars[i].value, val, MAX_VAR_VAL_LEN);
 #endif
-            return;
+            return 0;
         }
     }
         
@@ -199,6 +206,8 @@ mp_set_var(mp_context_t *ctx, const char *name, const char *val)
 #endif
         ctx->var_count++;
     }
+
+    return 0;
 }
 
 char*
@@ -213,9 +222,17 @@ get_var(mp_context_t *ctx, const char *key)
     return "";
 }
 
-void
+uint8_t
 mp_register_func(mp_context_t *ctx, const char* name, mp_func fn)
 {
+    if (name == NULL || fn == NULL) {
+        return 1;
+    }
+
+    if (!IS_NULL_TERMINATED(name, MAX_VAR_NAME_LEN)) {
+        return 1;
+    }
+
     if (ctx->user_func_registry.count < MAX_FUNCS) {
 #ifdef __FreeBSD__
         strlcpy(ctx->user_func_registry.funcs[ctx->user_func_registry.count].name,
@@ -227,6 +244,8 @@ mp_register_func(mp_context_t *ctx, const char* name, mp_func fn)
         ctx->user_func_registry.funcs[ctx->user_func_registry.count].fn = fn;
         ctx->user_func_registry.count++;
     }
+
+    return 0;
 }
 
 /**

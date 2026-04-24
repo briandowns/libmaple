@@ -98,16 +98,21 @@ mp_free(mp_context_t *ctx);
 
 /**
  * mp_set_var store the given key/value pair in the given context. The name is
- * the name of variable and val is the value to be stored.
+ * the name of variable and val is the value to be stored. If the variable
+ * already exists, the value is updated. If the variable doesn't exist, a new
+ * variable is created. If the name or value is NULL or not null terminated, an
+ * 1 is returned.
  */
-void
+uint8_t
 mp_set_var(mp_context_t *ctx, const char *name, const char *val);
 
 /**
  * mp_register_func adds a user defined function to the context to be used
- * during template rendering.
+ * during template rendering. The name is the name of the function to be used
+ * in the template and fn is the function pointer. If the name or function
+ * pointer is NULL or if the name is not null terminated, an 1 is returned.
  */
-void
+uint8_t
 mp_register_func(mp_context_t *ctx, const char *name, mp_func fn);
 
 /**
