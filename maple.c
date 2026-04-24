@@ -42,9 +42,6 @@
 #define MAX_CACHED        64
 #define MAX_INCLUDE_STACK 32 
 
-#define IS_NULL_TERMINATED(str, max_len) \
-    ((max_len) > 0 && strnlen((str), (max_len)) < (max_len))
-
 /**
  * cached_template_t 
  */
@@ -75,6 +72,15 @@ trim(char *s)
         *e-- = '\0';
     }
 }
+
+static inline bool
+is_null_terminated(const char *str, size_t max_len)
+{
+    return max_len > 0 && strnlen(str, max_len) < max_len;
+}
+
+#define IS_NULL_TERMINATED(str, max_len) \
+    is_null_terminated((str), (max_len))
 
 char*
 mp_upper(char *s)
@@ -706,8 +712,9 @@ mp_render_segment(mp_context_t *ctx, FILE *out, const char *tpl,
                   const char *end, const char *base_dir)
 {
     const char *p = tpl;
+    const size_t end_len = end ? strlen(end) : 0;
 
-    while (*p && (end == NULL || strncmp(p, end, strlen(end)) != 0)) {
+    while (*p && (end == NULL || strncmp(p, end, end_len) != 0)) {
         if (*p == '{' && *(p + 1) == '{') {
             p += 2;
             char token[512];
