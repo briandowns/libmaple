@@ -23,7 +23,7 @@ endif
 .PHONY: install
 install: 
 	cp maple.h $(INCDIR)
-ifneq (,$(filter $(UNAME_S),Linux FreeBSD))
+ifeq ($(UNAME_S),Darwin)
 	cp $(NAME).dylib $(LIBDIR)
 else
 	cp $(NAME).so $(LIBDIR)
@@ -31,10 +31,10 @@ endif
 
 uninstall:
 	rm -f $(INCDIR)/maple.h
-ifneq (,$(filter $(UNAME_S),Linux FreeBSD))
-	rm -f $(INCDIR)/$(NAME).dylib
+ifeq ($(UNAME_S),Darwin)
+	rm -f $(LIBDIR)/$(NAME).dylib
 else
-	rm -f $(INCDIR)/$(NAME).so
+	rm -f $(LIBDIR)/$(NAME).so
 endif
 
 .PHONY: tests
