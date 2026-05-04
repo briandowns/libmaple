@@ -14,10 +14,10 @@ LIBDIR  = /usr/local/lib
 
 ifeq ($(UNAME_S),Darwin)
 $(NAME).dylib: clean
-	$(CC) -c -dynamiclib -o $@ $(CFLAGS) $(LDFLAGS)
+	$(CC) -c -dynamiclib -o $@ maple.c $(CFLAGS) $(LDFLAGS)
 else
 $(NAME).so: clean
-	$(CC) -shared -o $@ $(CFLAGS) $(LDFLAGS)
+	$(CC) -shared -o $@ maple.c $(CFLAGS) $(LDFLAGS)
 endif
 
 .PHONY: install
