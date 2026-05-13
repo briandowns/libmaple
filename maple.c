@@ -641,7 +641,10 @@ mp_render_file(mp_context_t *ctx, FILE *out, const char *filename,
     }
 
     if (!realpath(full_path, abs_path)) {
-        return MP_ERR_FILE_NOT_FOUND;
+        ctx->err_code = MP_ERR_FILE_NOT_FOUND;
+        snprintf(ctx->err_msg, sizeof(ctx->err_msg),
+            "file not found: %s", full_path);
+        return 1;
     }
 
     // guard against cyclic include
@@ -654,7 +657,10 @@ mp_render_file(mp_context_t *ctx, FILE *out, const char *filename,
     char *content = cache_load(abs_path);
     if (content == NULL) {
         pop_include();
-        return MP_ERR_UNABLE_TO_LOAD_INCLUDE;
+        ctx->err_code = MP_ERR_UNABLE_TO_LOAD_INCLUDE;
+        snprintf(ctx->err_msg, sizeof(ctx->err_msg),
+            "unable to load include: %s", abs_path);
+        return 1;
     }
 
     // derive relative dir for nested includes
@@ -836,7 +842,10 @@ mp_render_segment(mp_context_t *ctx, FILE *out, const char *tpl,
                         return ret;
                     }
                 } else {
-                    return MP_ERR_INVALID_INCLUDE_SYNTAX;
+                    ctx->err_code = MP_ERR_INVALID_INCLUDE_SYNTAX;
+                    snprintf(ctx->err_msg, sizeof(ctx->err_msg),
+                        "invalid include syntax");
+                    return 1;
                 }
                 continue;
             }
