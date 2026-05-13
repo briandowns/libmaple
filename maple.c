@@ -53,7 +53,7 @@ struct mp_context {
     uint16_t var_count;
     function_registry_t user_func_registry;
     int err_code;
-    char err_msg[256];
+    char err_msg[1024];
 };
 
 /**
@@ -667,7 +667,12 @@ mp_render_file(mp_context_t *ctx, FILE *out, const char *filename,
     char dir[PATH_MAX_LEN];
     dirname_from_path(abs_path, dir);
 
-    mp_render_segment(ctx, out, content, NULL, dir);
+    int ret = mp_render_segment(ctx, out, content, NULL, dir);
+    if (ret != 0) {
+        free(content);
+        pop_include();
+        return ret;
+    }
 
     pop_include();
 
