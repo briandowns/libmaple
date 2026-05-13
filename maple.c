@@ -904,8 +904,14 @@ mp_strerror(const mp_context_t *ctx)
     return ctx->err_msg;
 }
 
+int
+mp_err_code(const mp_context_t *ctx)
+{
+    return ctx->err_code;
+}
+
 const char*
-mp_err_lookup(const mp_context_t *ctx)
+mp_err_code_str(const mp_context_t *ctx)
 {
     switch (ctx->err_code) {
         case MP_ERR_FILE_NOT_FOUND:
