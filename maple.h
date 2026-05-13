@@ -32,7 +32,6 @@
 extern "C" {
 #endif
 
-#include <stdint.h>
 #include <stdio.h>
 
 #define MAX_VARS         256
