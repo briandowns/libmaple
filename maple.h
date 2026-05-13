@@ -134,13 +134,13 @@ mp_render_file(mp_context_t *ctx, FILE *out, const char *filename,
                const char *caller_dir);
 
 /**
- * mp_strerror gets the error string for the given context.
+ * mp_strerror gets the error string value for the given context.
  */
 const char*
 mp_strerror(const mp_context_t *ctx);
 
 /**
- * mp_err_lookup gets the error string for the given error code.
+ * mp_err_lookup gets the named error string for the given error code.
  */
 const char*
 mp_err_lookup(const mp_context_t *ctx);
