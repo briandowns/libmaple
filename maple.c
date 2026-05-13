@@ -908,6 +908,8 @@ mp_err_lookup(const mp_context_t *ctx)
             return "invalid variable";
         case MP_ERR_INVALID_FUNCTION:
             return "invalid function";
+        case MP_OK:
+            return "";
         default:
             return "unknown error code";
     }
