@@ -32,7 +32,6 @@
 extern "C" {
 #endif
 
-#include <stdint.h>
 #include <stdio.h>
 
 #define MAX_VARS         256
@@ -40,10 +39,16 @@ extern "C" {
 #define MAX_VAR_VAL_LEN  512
 #define MAX_FUNCS        64
 
-#define MP_ERR_FILE_NOT_FOUND         1
-#define MP_ERR_INVALID_INCLUDE_SYNTAX 2
-#define MP_ERR_MISSING_END_TAG        3
-#define MP_ERR_UNABLE_TO_LOAD_INCLUDE 4
+enum {
+    MP_OK = 0,
+    MP_ERR_FILE_NOT_FOUND,
+    MP_ERR_INVALID_INCLUDE_SYNTAX,
+    MP_ERR_MISSING_END_TAG_IF,
+    MP_ERR_MISSING_END_TAG_RANGE,
+    MP_ERR_UNABLE_TO_LOAD_INCLUDE,
+    MP_ERR_INVALID_VARIABLE,
+    MP_ERR_INVALID_FUNCTION
+};
 
 /**
  * var_t holds all variables stored in key/value pairs.
@@ -78,11 +83,7 @@ typedef struct {
  * mp_context_t holds all functions and variables to be used when rendering
  * a template.
  */
-typedef struct {
-    var_t vars[MAX_VARS];
-    uint16_t var_count;
-    function_registry_t user_func_registry;
-} mp_context_t;
+typedef struct mp_context mp_context_t;
 
 /**
  * mp_init setups the library.
@@ -103,7 +104,7 @@ mp_free(mp_context_t *ctx);
  * variable is created. If the name or value is NULL or not null terminated, an
  * 1 is returned.
  */
-uint8_t
+int
 mp_set_var(mp_context_t *ctx, const char *name, const char *val);
 
 /**
@@ -112,7 +113,7 @@ mp_set_var(mp_context_t *ctx, const char *name, const char *val);
  * in the template and fn is the function pointer. If the name or function
  * pointer is NULL or if the name is not null terminated, an 1 is returned.
  */
-uint8_t
+int
 mp_register_func(mp_context_t *ctx, const char *name, mp_func fn);
 
 /**
@@ -121,7 +122,7 @@ mp_register_func(mp_context_t *ctx, const char *name, mp_func fn);
  * template to the executable. If not in the same directory, populate this with
  * the relative path.
  */
-uint8_t
+int
 mp_render_segment(mp_context_t *ctx, FILE *out, const char *tpl, 
                   const char *end, const char *base_dir);
 
@@ -129,15 +130,21 @@ mp_render_segment(mp_context_t *ctx, FILE *out, const char *tpl,
  * mp_render_file renders the given file with the seeded values in the provided
  * context.
  */
-uint8_t
+int
 mp_render_file(mp_context_t *ctx, FILE *out, const char *filename,
                const char *caller_dir);
 
 /**
- * mp_err_lookup gets the error string for the given error code.
+ * mp_strerror gets the error string value for the given context.
  */
 const char*
-mp_err_lookup(const uint8_t code);
+mp_strerror(const mp_context_t *ctx);
+
+/**
+ * mp_err_lookup gets the named error string for the given error code.
+ */
+const char*
+mp_err_lookup(const mp_context_t *ctx);
 
 #ifdef __cplusplus
 }

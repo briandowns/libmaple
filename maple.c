@@ -40,7 +40,21 @@
 
 #define PATH_MAX_LEN      512
 #define MAX_CACHED        64
-#define MAX_INCLUDE_STACK 32 
+#define MAX_INCLUDE_STACK 32
+
+#ifdef __FreeBSD__
+#define strxcpy(dest, src, size) strlcpy(dest, src, size)
+#else
+#define strxcpy(dest, src, size) strncpy(dest, src, size)
+#endif
+
+struct mp_context {
+    var_t vars[MAX_VARS];
+    uint16_t var_count;
+    function_registry_t user_func_registry;
+    int err_code;
+    char err_msg[256];
+};
 
 /**
  * cached_template_t 
@@ -64,10 +78,10 @@ inline static void
 trim(char *s)
 {
     while (isspace(*s)) {
-        memmove(s, s + 1, strlen(s));
+        memmove(s, s+1, strlen(s));
     }
 
-    char *e = s + strlen(s) - 1;
+    char *e = s + strlen(s)-1;
     while (e >= s && isspace(*e)) {
         *e-- = '\0';
     }
@@ -151,13 +165,8 @@ static void
 register_builtin_func(const char *name, mp_func fn)
 {
     if (builtin_func_registry.count < MAX_FUNCS) {
-#ifdef __FreeBSD__
-        strlcpy(builtin_func_registry.funcs[builtin_func_registry.count].name,
+        strxcpy(builtin_func_registry.funcs[builtin_func_registry.count].name,
             name, MAX_VAR_NAME_LEN);
-#else
-        strncpy(builtin_func_registry.funcs[builtin_func_registry.count].name,
-            name, MAX_VAR_NAME_LEN);
-#endif
         builtin_func_registry.funcs[builtin_func_registry.count].fn = fn;
         builtin_func_registry.count++;
     }
@@ -185,37 +194,34 @@ mp_free(mp_context_t *ctx)
     }
 }
 
-uint8_t
+int
 mp_set_var(mp_context_t *ctx, const char *name, const char *val)
 {
     if (name == NULL || val == NULL) {
+        ctx->err_code = MP_ERR_INVALID_VARIABLE;
+        snprintf(ctx->err_msg, sizeof(ctx->err_msg),
+            "variable name and value cannot be NULL");
         return 1;
     }
 
-    if (!IS_NULL_TERMINATED(name, strlen(name) + 1) || \
-        !IS_NULL_TERMINATED(val, strlen(val) + 1)) {
+    if (!IS_NULL_TERMINATED(name, MAX_VAR_NAME_LEN) || \
+        !IS_NULL_TERMINATED(val, MAX_VAR_VAL_LEN)) {
+        ctx->err_code = MP_ERR_INVALID_VARIABLE;
+        snprintf(ctx->err_msg, sizeof(ctx->err_msg),
+            "variable name and value must be null terminated");
         return 1;
     }
 
     for (uint64_t i = 0; i < ctx->var_count; i++) {
         if (strcmp(ctx->vars[i].key, name) == 0) {
-#ifdef __FreeBSD__
-            strlcpy(ctx->vars[i].value, val, MAX_VARS);
-#else
-            strncpy(ctx->vars[i].value, val, MAX_VARS);
-#endif
+            strxcpy(ctx->vars[i].value, val, MAX_VARS);
             return 0;
         }
     }
         
     if (ctx->var_count < MAX_VARS) {
-#ifdef __FreeBSD__
-        strlcpy(ctx->vars[ctx->var_count].key, name, MAX_VARS);
-        strlcpy(ctx->vars[ctx->var_count].value, val, MAX_VARS);
-#else
-        strncpy(ctx->vars[ctx->var_count].key, name, MAX_VARS);
-        strncpy(ctx->vars[ctx->var_count].value, val, MAX_VARS);
-#endif
+        strxcpy(ctx->vars[ctx->var_count].key, name, MAX_VARS);
+        strxcpy(ctx->vars[ctx->var_count].value, val, MAX_VARS);
         ctx->var_count++;
     }
 
@@ -234,25 +240,26 @@ get_var(mp_context_t *ctx, const char *key)
     return "";
 }
 
-uint8_t
+int
 mp_register_func(mp_context_t *ctx, const char* name, mp_func fn)
 {
     if (name == NULL || fn == NULL) {
+        ctx->err_code = MP_ERR_INVALID_FUNCTION;
+        snprintf(ctx->err_msg, sizeof(ctx->err_msg),
+            "function name and pointer cannot be NULL");
         return 1;
     }
 
     if (!IS_NULL_TERMINATED(name, MAX_VAR_NAME_LEN)) {
+        ctx->err_code = MP_ERR_INVALID_FUNCTION;
+        snprintf(ctx->err_msg, sizeof(ctx->err_msg),
+            "function name must be null terminated");
         return 1;
     }
 
     if (ctx->user_func_registry.count < MAX_FUNCS) {
-#ifdef __FreeBSD__
-        strlcpy(ctx->user_func_registry.funcs[ctx->user_func_registry.count].name,
+        strxcpy(ctx->user_func_registry.funcs[ctx->user_func_registry.count].name,
             name, MAX_VAR_NAME_LEN);
-#else
-        strncpy(ctx->user_func_registry.funcs[ctx->user_func_registry.count].name,
-            name, MAX_VAR_NAME_LEN);
-#endif
         ctx->user_func_registry.funcs[ctx->user_func_registry.count].fn = fn;
         ctx->user_func_registry.count++;
     }
@@ -620,7 +627,7 @@ eval_expr(mp_context_t *ctx, const char *expr)
     return parse_expr(ctx, &p);
 }
 
-uint8_t
+int
 mp_render_file(mp_context_t *ctx, FILE *out, const char *filename,
                const char *caller_dir)
 {
@@ -634,7 +641,10 @@ mp_render_file(mp_context_t *ctx, FILE *out, const char *filename,
     }
 
     if (!realpath(full_path, abs_path)) {
-        return MP_ERR_FILE_NOT_FOUND;
+        ctx->err_code = MP_ERR_FILE_NOT_FOUND;
+        snprintf(ctx->err_msg, sizeof(ctx->err_msg),
+            "file not found: %s", full_path);
+        return 1;
     }
 
     // guard against cyclic include
@@ -647,7 +657,10 @@ mp_render_file(mp_context_t *ctx, FILE *out, const char *filename,
     char *content = cache_load(abs_path);
     if (content == NULL) {
         pop_include();
-        return MP_ERR_UNABLE_TO_LOAD_INCLUDE;
+        ctx->err_code = MP_ERR_UNABLE_TO_LOAD_INCLUDE;
+        snprintf(ctx->err_msg, sizeof(ctx->err_msg),
+            "unable to load include: %s", abs_path);
+        return 1;
     }
 
     // derive relative dir for nested includes
@@ -707,7 +720,7 @@ html_escape(const char *s)
 /**
  * mp_render_segment
  */
-uint8_t
+int
 mp_render_segment(mp_context_t *ctx, FILE *out, const char *tpl, 
                   const char *end, const char *base_dir)
 {
@@ -753,7 +766,10 @@ mp_render_segment(mp_context_t *ctx, FILE *out, const char *tpl,
                 }
 
                 if (!end_tag) {
-                    return MP_ERR_MISSING_END_TAG;
+                    ctx->err_code = MP_ERR_MISSING_END_TAG_IF;
+                    snprintf(ctx->err_msg, sizeof(ctx->err_msg),
+                        "missing end tag for if statement");
+                    return 1;
                 }
 
                 uint8_t truth = eval_expr(ctx, cond) != 0;
@@ -793,9 +809,12 @@ mp_render_segment(mp_context_t *ctx, FILE *out, const char *tpl,
                     scan++;
                 }
 
-                end_tag = strstr(scan - 1, "{{ end }}");
-                if (!end_tag) {
-                    return MP_ERR_MISSING_END_TAG;
+                end_tag = strstr(scan-1, "{{ end }}");
+                if (end_tag == NULL) {
+                    ctx->err_code = MP_ERR_MISSING_END_TAG_RANGE;
+                    snprintf(ctx->err_msg, sizeof(ctx->err_msg),
+                        "missing end tag for range");
+                    return 1;
                 }
 
                 const char *items = get_var(ctx, list);
@@ -823,7 +842,10 @@ mp_render_segment(mp_context_t *ctx, FILE *out, const char *tpl,
                         return ret;
                     }
                 } else {
-                    return MP_ERR_INVALID_INCLUDE_SYNTAX;
+                    ctx->err_code = MP_ERR_INVALID_INCLUDE_SYNTAX;
+                    snprintf(ctx->err_msg, sizeof(ctx->err_msg),
+                        "invalid include syntax");
+                    return 1;
                 }
                 continue;
             }
@@ -872,17 +894,31 @@ mp_render_segment(mp_context_t *ctx, FILE *out, const char *tpl,
 }
 
 const char*
-mp_err_lookup(const uint8_t code)
+mp_strerror(const mp_context_t *ctx)
 {
-    switch (code) {
+    return ctx->err_msg;
+}
+
+const char*
+mp_err_lookup(const mp_context_t *ctx)
+{
+    switch (ctx->err_code) {
         case MP_ERR_FILE_NOT_FOUND:
             return "file not found";
         case MP_ERR_INVALID_INCLUDE_SYNTAX:
             return "invalid include syntax";
-        case MP_ERR_MISSING_END_TAG:
-            return "missing end tag";
+        case MP_ERR_MISSING_END_TAG_IF:
+            return "missing end tag for if statement";
+        case MP_ERR_MISSING_END_TAG_RANGE:
+            return "missing end tag for range statement";
         case MP_ERR_UNABLE_TO_LOAD_INCLUDE:
             return "unable to load include";
+        case MP_ERR_INVALID_VARIABLE:
+            return "invalid variable";
+        case MP_ERR_INVALID_FUNCTION:
+            return "invalid function";
+        case MP_OK:
+            return "";
         default:
             return "unknown error code";
     }
