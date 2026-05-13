@@ -47,7 +47,8 @@ enum {
     MP_ERR_MISSING_END_TAG_RANGE,
     MP_ERR_UNABLE_TO_LOAD_INCLUDE,
     MP_ERR_INVALID_VARIABLE,
-    MP_ERR_INVALID_FUNCTION
+    MP_ERR_INVALID_FUNCTION,
+    MP_ERR_NULL_CONTEXT
 };
 
 /**
@@ -106,6 +107,18 @@ mp_free(mp_context_t *ctx);
  */
 int
 mp_set_var(mp_context_t *ctx, const char *name, const char *val);
+
+/**
+ * mp_var_count returns the number of variables stored in the given context.
+ */
+int
+mp_var_count(const mp_context_t *ctx);
+
+/**
+ * mp_clear_vars clears all variables in the given context.
+ */
+int
+mp_clear_vars(mp_context_t *ctx);
 
 /**
  * mp_register_func adds a user defined function to the context to be used
