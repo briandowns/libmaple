@@ -204,8 +204,8 @@ mp_set_var(mp_context_t *ctx, const char *name, const char *val)
         return 1;
     }
 
-    if (!IS_NULL_TERMINATED(name, strlen(name) + 1) || \
-        !IS_NULL_TERMINATED(val, strlen(val) + 1)) {
+    if (!IS_NULL_TERMINATED(name, MAX_VAR_NAME_LEN) || \
+        !IS_NULL_TERMINATED(val, MAX_VAR_VAL_LEN)) {
         ctx->err_code = MP_ERR_INVALID_VARIABLE;
         snprintf(ctx->err_msg, sizeof(ctx->err_msg),
             "variable name and value must be null terminated");
