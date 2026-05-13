@@ -141,10 +141,16 @@ const char*
 mp_strerror(const mp_context_t *ctx);
 
 /**
- * mp_err_lookup gets the named error string for the given error code.
+ * mp_err_code gets the last error code.
+ */
+int
+mp_err_code(const mp_context_t *ctx);
+
+/**
+ * mp_err_code_str gets the named error string for the last error code.
  */
 const char*
-mp_err_lookup(const mp_context_t *ctx);
+mp_err_code_str(const mp_context_t *ctx);
 
 #ifdef __cplusplus
 }

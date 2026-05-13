@@ -90,12 +90,13 @@ If a value contains HTML or characters that could be replaced by the escaping pr
 
 ### Error Handling
 
-Functions that can error will return a `int` value starting at 1. A lookup function is provided to get the corresponding error string.
+Functions that can error will return a `int` value of either 0 or 1, 0 for success or 1 for an error. That value is also stored on the `ctx` value that's passed to the function. The `ctx` value also carries an error string associated with the error.
 
 ```c
 int ret = mp_render_segment(ctx, out, tpl, NULL, ".");
 if (ret != 0) {
-    printf("%s\n", mp_err_lookup(ret));
+    printf("error code: %d, error code str: %s, error message: %s\n",
+        mp_err_code_str(ctx), mp_err_code(ctx), mp_strerror(ctx));
     return 1;
 }
 ```
@@ -109,7 +110,7 @@ All tests can be found in the `tests/` directory and are easily extended.
 To run:
 
 ```sh
-make test
+make tests
 ```
 
 Tests are compiled with debug symbols.
