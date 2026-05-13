@@ -44,6 +44,8 @@
 
 #define MP_ERR_NULL_CONTEXT_STR "null context"
 #define MP_ERR_INVALID_VARIABLE_STR "variable name or value cannot be NULL"
+#define MP_ERR_VAR_NOT_NULL_TERMINATED_STR \
+"variable name and value must be null terminated"
 #define MP_ERR_INVALID_FUNCTION_STR "function name or pointer cannot be NULL"
 #define MP_ERR_INVALID_FUNCTION_NAME_STR "function name must be null terminated"
 
@@ -202,6 +204,13 @@ mp_free(mp_context_t *ctx)
 int
 mp_set_var(mp_context_t *ctx, const char *name, const char *val)
 {
+    if (ctx == NULL) {
+        ctx->err_code = MP_ERR_NULL_CONTEXT;
+        snprintf(ctx->err_msg, sizeof(ctx->err_msg),
+            MP_ERR_NULL_CONTEXT_STR);
+        return 1;
+    }
+
     if (name == NULL || val == NULL) {
         ctx->err_code = MP_ERR_INVALID_VARIABLE;
         snprintf(ctx->err_msg, sizeof(ctx->err_msg),
@@ -213,7 +222,7 @@ mp_set_var(mp_context_t *ctx, const char *name, const char *val)
         !IS_NULL_TERMINATED(val, MAX_VAR_VAL_LEN)) {
         ctx->err_code = MP_ERR_INVALID_VARIABLE;
         snprintf(ctx->err_msg, sizeof(ctx->err_msg),
-            MP_ERR_INVALID_VARIABLE_STR);
+            MP_ERR_VAR_NOT_NULL_TERMINATED_STR);
         return 1;
     }
 

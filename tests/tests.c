@@ -280,6 +280,8 @@ test_clear_vars()
     mp_clear_vars(ctx);
     CC_ASSERT_INT_EQUAL(mp_var_count(ctx), 0);
 
+    fclose(ret_buffer);
+
     CC_SUCCESS;
 }
 
