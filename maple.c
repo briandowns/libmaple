@@ -42,6 +42,11 @@
 #define MAX_CACHED        64
 #define MAX_INCLUDE_STACK 32
 
+#define MP_ERR_NULL_CONTEXT_STR "null context"
+#define MP_ERR_INVALID_VARIABLE_STR "variable name or value cannot be NULL"
+#define MP_ERR_INVALID_FUNCTION_STR "function name or pointer cannot be NULL"
+#define MP_ERR_INVALID_FUNCTION_NAME_STR "function name must be null terminated"
+
 #ifdef __FreeBSD__
 #define strxcpy(dest, src, size) strlcpy(dest, src, size)
 #else
@@ -200,7 +205,7 @@ mp_set_var(mp_context_t *ctx, const char *name, const char *val)
     if (name == NULL || val == NULL) {
         ctx->err_code = MP_ERR_INVALID_VARIABLE;
         snprintf(ctx->err_msg, sizeof(ctx->err_msg),
-            "variable name and value cannot be NULL");
+            MP_ERR_INVALID_VARIABLE_STR);
         return 1;
     }
 
@@ -208,7 +213,7 @@ mp_set_var(mp_context_t *ctx, const char *name, const char *val)
         !IS_NULL_TERMINATED(val, MAX_VAR_VAL_LEN)) {
         ctx->err_code = MP_ERR_INVALID_VARIABLE;
         snprintf(ctx->err_msg, sizeof(ctx->err_msg),
-            "variable name and value must be null terminated");
+            MP_ERR_INVALID_VARIABLE_STR);
         return 1;
     }
 
@@ -228,9 +233,42 @@ mp_set_var(mp_context_t *ctx, const char *name, const char *val)
     return 0;
 }
 
-char*
+int
+mp_var_count(const mp_context_t *ctx)
+{
+    if (ctx == NULL) {
+        return 0;
+    }
+
+    return ctx->var_count;
+}
+
+int
+mp_clear_vars(mp_context_t *ctx)
+{
+    if (ctx == NULL) {
+        ctx->err_code = MP_ERR_NULL_CONTEXT;
+        snprintf(ctx->err_msg, sizeof(ctx->err_msg),
+            MP_ERR_NULL_CONTEXT_STR);
+        return 1;
+    }
+
+    for (uint64_t i = 0; i < ctx->var_count; i++) {
+        ctx->vars[i].key[0] = '\0';
+        ctx->vars[i].value[0] = '\0';
+    }
+
+    ctx->var_count = 0;
+    return 0;
+}
+
+static char*
 get_var(mp_context_t *ctx, const char *key)
 {
+    if (ctx == NULL) {
+        return "";
+    }
+
     for (uint64_t i = 0; i < ctx->var_count; i++) {
         if (strcmp(ctx->vars[i].key, key) == 0) {
             return ctx->vars[i].value;
@@ -243,17 +281,24 @@ get_var(mp_context_t *ctx, const char *key)
 int
 mp_register_func(mp_context_t *ctx, const char* name, mp_func fn)
 {
+    if (ctx == NULL) {
+        ctx->err_code = MP_ERR_NULL_CONTEXT;
+        snprintf(ctx->err_msg, sizeof(ctx->err_msg),
+            MP_ERR_NULL_CONTEXT_STR);
+        return 1;
+    }
+
     if (name == NULL || fn == NULL) {
         ctx->err_code = MP_ERR_INVALID_FUNCTION;
         snprintf(ctx->err_msg, sizeof(ctx->err_msg),
-            "function name and pointer cannot be NULL");
+            MP_ERR_INVALID_FUNCTION_STR);
         return 1;
     }
 
     if (!IS_NULL_TERMINATED(name, MAX_VAR_NAME_LEN)) {
         ctx->err_code = MP_ERR_INVALID_FUNCTION;
         snprintf(ctx->err_msg, sizeof(ctx->err_msg),
-            "function name must be null terminated");
+            MP_ERR_INVALID_FUNCTION_NAME_STR);
         return 1;
     }
 
@@ -275,6 +320,10 @@ mp_register_func(mp_context_t *ctx, const char* name, mp_func fn)
 static mp_func
 find_func(mp_context_t *ctx, const char *name)
 {
+    if (ctx == NULL) {
+        return NULL;
+    }
+
     for (uint8_t i = 0; i < ctx->user_func_registry.count; i++) {
         if (strcmp(ctx->user_func_registry.funcs[i].name, name) == 0) {
             return ctx->user_func_registry.funcs[i].fn;
@@ -449,6 +498,10 @@ parse_expr(mp_context_t *ctx, const char **tr);
 static double
 parse_factor(mp_context_t *ctx, const char **str)
 {
+    if (ctx == NULL) {
+        return 0;
+    }
+
     while (isspace(**str)) {
         (*str)++;
     }
@@ -492,6 +545,10 @@ parse_factor(mp_context_t *ctx, const char **str)
 static double
 parse_term(mp_context_t *ctx, const char **str)
 {
+    if (ctx == NULL) {
+        return 0;
+    }
+
     double v = parse_factor(ctx, str);
 
     while (1) {
@@ -520,6 +577,10 @@ parse_term(mp_context_t *ctx, const char **str)
 static double
 parse_arith(mp_context_t *ctx, const char **str)
 {
+    if (ctx == NULL) {
+        return 0;
+    }
+
     double v = parse_term(ctx, str);
 
     while (1) {
@@ -548,6 +609,10 @@ parse_arith(mp_context_t *ctx, const char **str)
 static double
 parse_compare(mp_context_t *ctx, const char **str)
 {
+    if (ctx == NULL) {
+        return 0;
+    }
+
     double v = parse_arith(ctx, str);
 
     while (1) {
@@ -587,6 +652,10 @@ parse_compare(mp_context_t *ctx, const char **str)
 static double
 parse_logic(mp_context_t *ctx, const char **str)
 {
+    if (ctx == NULL) {
+        return 0;
+    }
+
     double v = parse_compare(ctx, str);
 
     while (1) {
@@ -614,6 +683,10 @@ parse_logic(mp_context_t *ctx, const char **str)
 static double
 parse_expr(mp_context_t *ctx, const char **str)
 {
+    if (ctx == NULL) {
+        return 0;
+    }
+
     return parse_logic(ctx, str);
 }
 
@@ -623,7 +696,12 @@ parse_expr(mp_context_t *ctx, const char **str)
 static double
 eval_expr(mp_context_t *ctx, const char *expr)
 {
+    if (ctx == NULL) {
+        return 0;
+    }
+
     const char *p = expr;
+
     return parse_expr(ctx, &p);
 }
 
@@ -631,6 +709,13 @@ int
 mp_render_file(mp_context_t *ctx, FILE *out, const char *filename,
                const char *caller_dir)
 {
+    if (ctx == NULL) {
+        ctx->err_code = MP_ERR_NULL_CONTEXT;
+        snprintf(ctx->err_msg, sizeof(ctx->err_msg),
+            "context cannot be NULL");
+        return 1;
+    }
+
     char full_path[PATH_MAX_LEN];
     char abs_path[PATH_MAX_LEN];
 
@@ -729,6 +814,13 @@ int
 mp_render_segment(mp_context_t *ctx, FILE *out, const char *tpl, 
                   const char *end, const char *base_dir)
 {
+    if (ctx == NULL) {
+        ctx->err_code = MP_ERR_NULL_CONTEXT;
+        snprintf(ctx->err_msg, sizeof(ctx->err_msg),
+            "context cannot be NULL");
+        return 1;
+    }
+
     const char *p = tpl;
     const size_t end_len = end ? strlen(end) : 0;
 
@@ -840,7 +932,7 @@ mp_render_segment(mp_context_t *ctx, FILE *out, const char *tpl,
 
             if (strncmp(token, "include ", 8) == 0) {
                 char fname[256];
-                
+
                 if (sscanf(token + 8, "\"%255[^\"]\"", fname) == 1) {
                     uint8_t ret = mp_render_file(ctx, out, fname, base_dir);
                     if (ret != 0) {
@@ -901,18 +993,30 @@ mp_render_segment(mp_context_t *ctx, FILE *out, const char *tpl,
 const char*
 mp_strerror(const mp_context_t *ctx)
 {
+    if (ctx == NULL) {
+        return MP_ERR_NULL_CONTEXT_STR;
+    }
+
     return ctx->err_msg;
 }
 
 int
 mp_err_code(const mp_context_t *ctx)
 {
+    if (ctx == NULL) {
+        return MP_ERR_NULL_CONTEXT;
+    }
+
     return ctx->err_code;
 }
 
 const char*
 mp_err_code_str(const mp_context_t *ctx)
 {
+    if (ctx == NULL) {
+        return MP_ERR_NULL_CONTEXT_STR;
+    }
+
     switch (ctx->err_code) {
         case MP_ERR_FILE_NOT_FOUND:
             return "file not found";
@@ -928,6 +1032,8 @@ mp_err_code_str(const mp_context_t *ctx)
             return "invalid variable";
         case MP_ERR_INVALID_FUNCTION:
             return "invalid function";
+        case MP_ERR_NULL_CONTEXT:
+            return "null context";
         case MP_OK:
             return "";
         default:

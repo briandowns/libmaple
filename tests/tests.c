@@ -266,6 +266,23 @@ test_error_missing_end()
     CC_SUCCESS;
 }
 
+cc_result_t
+test_clear_vars()
+{
+    mp_set_var(ctx, "name", "Maple");
+    CC_ASSERT_INT_EQUAL(mp_var_count(ctx), 1);
+    mp_clear_vars(ctx);
+    CC_ASSERT_INT_EQUAL(mp_var_count(ctx), 0);
+
+    mp_set_var(ctx, "name", "Maple");
+    mp_set_var(ctx, "name2", "Butterball");
+    CC_ASSERT_INT_EQUAL(mp_var_count(ctx), 2);
+    mp_clear_vars(ctx);
+    CC_ASSERT_INT_EQUAL(mp_var_count(ctx), 0);
+
+    CC_SUCCESS;
+}
+
 int
 main(void)
 {
@@ -288,6 +305,7 @@ main(void)
     CC_RUN(test_boolean_and);
     CC_RUN(test_boolean_or);
     CC_RUN(test_error_missing_end);
+    CC_RUN(test_clear_vars);
 
     CC_COMPLETE;
 }
