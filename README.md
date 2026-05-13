@@ -90,10 +90,10 @@ If a value contains HTML or characters that could be replaced by the escaping pr
 
 ### Error Handling
 
-Functions that can error will return a `uint8_t` value starting at 1. A lookup function is provided to get the corresponding error string.
+Functions that can error will return a `int` value starting at 1. A lookup function is provided to get the corresponding error string.
 
 ```c
-uint8_t ret = mp_render_segment(ctx, out, tpl, NULL, ".");
+int ret = mp_render_segment(ctx, out, tpl, NULL, ".");
 if (ret != 0) {
     printf("%s\n", mp_err_lookup(ret));
     return 1;
