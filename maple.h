@@ -32,12 +32,13 @@
 extern "C" {
 #endif
 
+#include <stdint.h>
 #include <stdio.h>
 
-#define MAX_VARS         256
+#define MAX_VARS 256
 #define MAX_VAR_NAME_LEN 64
-#define MAX_VAR_VAL_LEN  512
-#define MAX_FUNCS        64
+#define MAX_VAR_VAL_LEN 512
+#define MAX_FUNCS 64
 
 enum {
     MP_OK = 0,
@@ -105,19 +106,19 @@ mp_free(mp_context_t *ctx);
  * variable is created. If the name or value is NULL or not null terminated, an
  * 1 is returned.
  */
-int
+uint8_t
 mp_set_var(mp_context_t *ctx, const char *name, const char *val);
 
 /**
  * mp_var_count returns the number of variables stored in the given context.
  */
-int
+uint16_t
 mp_var_count(const mp_context_t *ctx);
 
 /**
  * mp_clear_vars clears all variables in the given context.
  */
-int
+uint8_t
 mp_clear_vars(mp_context_t *ctx);
 
 /**
@@ -126,7 +127,7 @@ mp_clear_vars(mp_context_t *ctx);
  * in the template and fn is the function pointer. If the name or function
  * pointer is NULL or if the name is not null terminated, an 1 is returned.
  */
-int
+uint8_t
 mp_register_func(mp_context_t *ctx, const char *name, mp_func fn);
 
 /**
@@ -135,7 +136,7 @@ mp_register_func(mp_context_t *ctx, const char *name, mp_func fn);
  * template to the executable. If not in the same directory, populate this with
  * the relative path.
  */
-int
+uint8_t
 mp_render_segment(mp_context_t *ctx, FILE *out, const char *tpl, 
                   const char *end, const char *base_dir);
 
@@ -143,7 +144,7 @@ mp_render_segment(mp_context_t *ctx, FILE *out, const char *tpl,
  * mp_render_file renders the given file with the seeded values in the provided
  * context.
  */
-int
+uint8_t
 mp_render_file(mp_context_t *ctx, FILE *out, const char *filename,
                const char *caller_dir);
 

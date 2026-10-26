@@ -38,8 +38,8 @@
 
 #include "maple.h"
 
-#define PATH_MAX_LEN      512
-#define MAX_CACHED        64
+#define PATH_MAX_LEN 512
+#define MAX_CACHED 64
 #define MAX_INCLUDE_STACK 32
 
 #define MP_ERR_NULL_CONTEXT_STR "null context"
@@ -201,7 +201,7 @@ mp_free(mp_context_t *ctx)
     }
 }
 
-int
+uint8_t
 mp_set_var(mp_context_t *ctx, const char *name, const char *val)
 {
     if (ctx == NULL) {
@@ -242,7 +242,7 @@ mp_set_var(mp_context_t *ctx, const char *name, const char *val)
     return 0;
 }
 
-int
+uint16_t
 mp_var_count(const mp_context_t *ctx)
 {
     if (ctx == NULL) {
@@ -252,7 +252,7 @@ mp_var_count(const mp_context_t *ctx)
     return ctx->var_count;
 }
 
-int
+uint8_t
 mp_clear_vars(mp_context_t *ctx)
 {
     if (ctx == NULL) {
@@ -287,7 +287,7 @@ get_var(mp_context_t *ctx, const char *key)
     return "";
 }
 
-int
+uint8_t
 mp_register_func(mp_context_t *ctx, const char* name, mp_func fn)
 {
     if (ctx == NULL) {
@@ -714,7 +714,7 @@ eval_expr(mp_context_t *ctx, const char *expr)
     return parse_expr(ctx, &p);
 }
 
-int
+uint8_t
 mp_render_file(mp_context_t *ctx, FILE *out, const char *filename,
                const char *caller_dir)
 {
@@ -819,7 +819,7 @@ html_escape(const char *s)
 /**
  * mp_render_segment
  */
-int
+uint8_t
 mp_render_segment(mp_context_t *ctx, FILE *out, const char *tpl, 
                   const char *end, const char *base_dir)
 {
@@ -979,7 +979,7 @@ mp_render_segment(mp_context_t *ctx, FILE *out, const char *tpl,
                     fprintf(out, "%.2f", result);
                 }
             }
-            
+
             if (strncmp(token, "safe ", 5) == 0) {
                 const char *var = token + 5;
 
