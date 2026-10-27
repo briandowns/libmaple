@@ -991,10 +991,13 @@ mp_render_segment(mp_context_t *ctx, FILE *out, const char *tpl,
                 mp_func f = find_func(ctx, func);
                 if (f) {
                     char *tmp = strdup(get_var(ctx, arg));
-                    if (tmp != NULL) {
-                        html_escaped(out, f(tmp));
-                        free(tmp);
+                    if (tmp == NULL) {
+                        return set_err(ctx, MP_ERR_NO_MEMORY, "out of memory");
                     }
+
+                    html_escaped(out, f(tmp));
+                    free(tmp);
+
                     continue;
                 }
             }
