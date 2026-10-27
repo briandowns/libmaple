@@ -269,7 +269,7 @@ mp_set_var(mp_context_t *ctx, const char *name, const char *val)
 
     for (uint16_t i = 0; i < ctx->var_count; i++) {
         if (strcmp(ctx->vars[i].key, name) == 0) {
-            free(ctx->vars[i].val);         /* update in place */
+            free(ctx->vars[i].val);
             ctx->vars[i].val = v;
             return 0;
         }
@@ -334,21 +334,17 @@ uint8_t
 mp_register_func(mp_context_t *ctx, const char* name, mp_func fn)
 {
     if (ctx == NULL) {
-        return 0;
+        return MP_ERR_NULL_CONTEXT;
     }
 
     if (name == NULL || fn == NULL) {
-        ctx->err_code = MP_ERR_INVALID_FUNCTION;
-        snprintf(ctx->err_msg, sizeof(ctx->err_msg),
+        return set_err(ctx, MP_ERR_INVALID_FUNCTION,
             MP_ERR_INVALID_FUNCTION_STR);
-        return 1;
     }
 
     if (!IS_NULL_TERMINATED(name, MAX_VAR_NAME_LEN)) {
-        ctx->err_code = MP_ERR_INVALID_FUNCTION;
-        snprintf(ctx->err_msg, sizeof(ctx->err_msg),
+        return set_err(ctx, MP_ERR_INVALID_FUNCTION,
             MP_ERR_INVALID_FUNCTION_NAME_STR);
-        return 1;
     }
 
     if (ctx->user_func_registry.count < MAX_FUNCS) {
@@ -525,7 +521,8 @@ static void
 push_include(mp_context_t *ctx, const char *fullpath)
 {
     if (ctx->include_depth < MAX_INCLUDE_STACK) {
-        strxcpy(ctx->include_stack[ctx->include_depth++], fullpath, PATH_MAX_LEN);
+        strxcpy(ctx->include_stack[ctx->include_depth++], fullpath,
+            PATH_MAX_LEN);
     }
 }
 
@@ -664,7 +661,7 @@ static double
 parse_compare(mp_context_t *ctx, const char **str)
 {
     if (ctx == NULL) {
-        return (double)0;
+        return 0;
     }
 
     double v = parse_arith(ctx, str);
@@ -751,7 +748,7 @@ static double
 eval_expr(mp_context_t *ctx, const char *expr)
 {
     if (ctx == NULL) {
-        return (double)0;
+        return 0;
     }
 
     const char *p = expr;
@@ -764,7 +761,7 @@ mp_render_file(mp_context_t *ctx, FILE *out, const char *filename,
                const char *caller_dir)
 {
     if (ctx == NULL) {
-        return 0;
+        return MP_ERR_NULL_CONTEXT;
     }
 
     char full_path[PATH_MAX_LEN];
@@ -855,7 +852,7 @@ mp_render_segment(mp_context_t *ctx, FILE *out, const char *tpl,
                   const char *end, const char *base_dir)
 {
     if (ctx == NULL) {
-        return 0;
+        return MP_ERR_NULL_CONTEXT;
     }
 
     const char *p = tpl;
