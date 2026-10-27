@@ -194,6 +194,8 @@ mp_init()
     mp_context_t *ctx = (mp_context_t*)calloc(1, sizeof(mp_context_t));
     ctx->var_count = 0;
 
+    static pthread_mutex_t builtin_func_mutex = PTHREAD_MUTEX_INITIALIZER;
+    pthread_mutex_lock(&builtin_func_mutex);
     if (!builtin_funcs_registered) {
         register_builtin_func("upper", builtin_func_upper); 
         register_builtin_func("lower", builtin_func_lower);
@@ -201,6 +203,7 @@ mp_init()
         register_builtin_func("reverse", builtin_func_reverse);
         builtin_funcs_registered = true;
     }
+    pthread_mutex_unlock(&builtin_func_mutex);
 
     return ctx;
 }
@@ -305,7 +308,7 @@ uint16_t
 mp_var_count(const mp_context_t *ctx)
 {
     if (ctx == NULL) {
-        return MP_ERR_NULL_CONTEXT;
+        return 0;
     }
 
     return ctx->var_count;
@@ -331,7 +334,7 @@ uint8_t
 mp_register_func(mp_context_t *ctx, const char* name, mp_func fn)
 {
     if (ctx == NULL) {
-        return MP_ERR_NULL_CONTEXT;
+        return 0;
     }
 
     if (name == NULL || fn == NULL) {
@@ -397,7 +400,7 @@ dirname_from_path(const char *path, char *dir)
 
     if (sl) {
         size_t len = sl - path;
-        strxcpy(dir, path, len);
+        memcpy(dir, path, len);
         dir[len] = '\0';
     } else {
         strcpy(dir, ".");
@@ -481,6 +484,7 @@ cache_load(const char *path)
     content[len] = 0;
     fclose(fp);
 
+    pthread_mutex_lock(&cache_mutex);
     if (cache_item) {
         free(cache_item->content);
         cache_item->content = content;
@@ -491,6 +495,7 @@ cache_load(const char *path)
         cache[cache_count].mtime = now;
         cache_count++;
     }
+    pthread_mutex_unlock(&cache_mutex);
 
     return content;
 }
@@ -548,7 +553,7 @@ static double
 parse_factor(mp_context_t *ctx, const char **str)
 {
     if (ctx == NULL) {
-        return MP_ERR_NULL_CONTEXT;
+        return 0;
     }
 
     while (isspace(**str)) {
@@ -595,7 +600,7 @@ static double
 parse_term(mp_context_t *ctx, const char **str)
 {
     if (ctx == NULL) {
-        return MP_ERR_NULL_CONTEXT;
+        return 0;
     }
 
     double v = parse_factor(ctx, str);
@@ -627,7 +632,7 @@ static double
 parse_arith(mp_context_t *ctx, const char **str)
 {
     if (ctx == NULL) {
-        return MP_ERR_NULL_CONTEXT;
+        return 0;
     }
 
     double v = parse_term(ctx, str);
@@ -659,7 +664,7 @@ static double
 parse_compare(mp_context_t *ctx, const char **str)
 {
     if (ctx == NULL) {
-        return (double)MP_ERR_NULL_CONTEXT;
+        return (double)0;
     }
 
     double v = parse_arith(ctx, str);
@@ -702,7 +707,7 @@ static double
 parse_logic(mp_context_t *ctx, const char **str)
 {
     if (ctx == NULL) {
-        return (double)MP_ERR_NULL_CONTEXT;
+        return (double)0;
     }
 
     double v = parse_compare(ctx, str);
@@ -733,7 +738,7 @@ static double
 parse_expr(mp_context_t *ctx, const char **str)
 {
     if (ctx == NULL) {
-        return (double)MP_ERR_NULL_CONTEXT;
+        return (double)0;
     }
 
     return parse_logic(ctx, str);
@@ -746,7 +751,7 @@ static double
 eval_expr(mp_context_t *ctx, const char *expr)
 {
     if (ctx == NULL) {
-        return (double)MP_ERR_NULL_CONTEXT;
+        return (double)0;
     }
 
     const char *p = expr;
@@ -759,7 +764,7 @@ mp_render_file(mp_context_t *ctx, FILE *out, const char *filename,
                const char *caller_dir)
 {
     if (ctx == NULL) {
-        return MP_ERR_NULL_CONTEXT;
+        return 0;
     }
 
     char full_path[PATH_MAX_LEN];
@@ -850,7 +855,7 @@ mp_render_segment(mp_context_t *ctx, FILE *out, const char *tpl,
                   const char *end, const char *base_dir)
 {
     if (ctx == NULL) {
-        return MP_ERR_NULL_CONTEXT;
+        return 0;
     }
 
     const char *p = tpl;
@@ -947,7 +952,7 @@ mp_render_segment(mp_context_t *ctx, FILE *out, const char *tpl,
                 }
 
                 const char *items = get_var(ctx, list);
-                char buf[512];
+                char buf[MAX_VAR_VAL_LEN];
                 strcpy(buf, items);
                 char *it = strtok(buf, ",");
 
@@ -1015,11 +1020,7 @@ mp_render_segment(mp_context_t *ctx, FILE *out, const char *tpl,
                 }
                 fprintf(out, "%s", get_var(ctx, var));
             } else {
-                char *tmp = strdup(get_var(ctx, arg));
-                if (tmp != NULL) {
-                    html_escaped(out, tmp);
-                    free(tmp);
-                }
+                html_escaped(out, get_var(ctx, token));
             }
         } else {
             fputc(*p++, out);
@@ -1043,7 +1044,7 @@ int
 mp_err_code(const mp_context_t *ctx)
 {
     if (ctx == NULL) {
-        return MP_ERR_NULL_CONTEXT;
+        return 0;
     }
 
     return ctx->err_code;
@@ -1071,6 +1072,10 @@ mp_err_code_str(const mp_context_t *ctx)
             return "invalid variable";
         case MP_ERR_INVALID_FUNCTION:
             return "invalid function";
+        case MP_ERR_VAR_TOO_LONG:
+            return "variable name or value too long";
+        case MP_ERR_TOO_MANY_VARS:
+            return "too many variables";
         case MP_ERR_NULL_CONTEXT:
             return "null context";
         case MP_OK:
