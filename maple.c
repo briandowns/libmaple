@@ -973,10 +973,8 @@ mp_render_segment(mp_context_t *ctx, FILE *out, const char *tpl,
                         return ret;
                     }
                 } else {
-                    ctx->err_code = MP_ERR_INVALID_INCLUDE_SYNTAX;
-                    snprintf(ctx->err_msg, sizeof(ctx->err_msg),
+                    return set_err(ctx, MP_ERR_INVALID_INCLUDE_SYNTAX,
                         "invalid include syntax");
-                    return 1;
                 }
                 continue;
             }
