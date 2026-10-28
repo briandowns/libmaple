@@ -2,7 +2,7 @@ CC = cc
 
 CFLAGS  = -O3 -Wall -Wextra -fPIC -O3
 TEST_CFLAGS  = -g -Wall -Wextra
-LDFLAGS = -lm
+LDFLAGS = -lm -pthread
 
 NAME    = libmaple
 

@@ -27,6 +27,7 @@
 
 #include <ctype.h>
 #include <math.h>
+#include <pthread.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -55,10 +56,18 @@
 #define strxcpy(dest, src, size) strncpy(dest, src, size)
 #endif
 
+typedef struct {
+    char *key;
+    char *val;
+} var_t;
+
 struct mp_context {
-    var_t vars[MAX_VARS];
+    var_t *vars;
     uint16_t var_count;
+    uint16_t var_cap;
     function_registry_t user_func_registry;
+    char include_stack[MAX_INCLUDE_STACK][PATH_MAX_LEN];
+    int include_depth;
     int err_code;
     char err_msg[1024];
 };
@@ -72,11 +81,11 @@ typedef struct {
     time_t mtime;
 } cached_template_t;
 
+static pthread_mutex_t cache_mutex = PTHREAD_MUTEX_INITIALIZER;
 static cached_template_t cache[MAX_CACHED];
 static function_registry_t builtin_func_registry = {0};
 static int cache_count = 0;
-static char include_stack[MAX_INCLUDE_STACK][PATH_MAX_LEN];
-static int include_depth = 0;
+static bool builtin_funcs_registered = false;
 
 /**
  * trim removes unnecessary whitespace.
@@ -103,8 +112,8 @@ is_null_terminated(const char *str, size_t max_len)
 #define IS_NULL_TERMINATED(str, max_len) \
     is_null_terminated((str), (max_len))
 
-char*
-mp_upper(char *s)
+static char*
+builtin_func_upper(char *s)
 {
     if (strlen(s) < 1) {
         return s;
@@ -117,8 +126,8 @@ mp_upper(char *s)
     return s;
 }
 
-char*
-mp_lower(char *s)
+static char*
+builtin_func_lower(char *s)
 {
     if (strlen(s) < 1) {
         return s;
@@ -131,8 +140,8 @@ mp_lower(char *s)
     return s;
 }
 
-char*
-mp_title(char *s)
+static char*
+builtin_func_title(char *s)
 {
     if (strlen(s) < 1) {
         return s;
@@ -140,7 +149,7 @@ mp_title(char *s)
 
     uint64_t i;
     uint64_t cap = 1;
-    
+
     for (i = 0; s[i]; i++) {
         s[i] = cap ? toupper(s[i]) : tolower(s[i]); cap = (s[i] == ' ');
     }
@@ -149,8 +158,8 @@ mp_title(char *s)
     return s;
 }
 
-char*
-mp_reverse(char *s)
+static char*
+builtin_func_reverse(char *s)
 {
     if (strlen(s) < 1) {
         return s;
@@ -185,59 +194,112 @@ mp_init()
     mp_context_t *ctx = (mp_context_t*)calloc(1, sizeof(mp_context_t));
     ctx->var_count = 0;
 
-    register_builtin_func("upper", mp_upper); 
-    register_builtin_func("lower", mp_lower);
-    register_builtin_func("title", mp_title);
-    register_builtin_func("reverse", mp_reverse);
+    static pthread_mutex_t builtin_func_mutex = PTHREAD_MUTEX_INITIALIZER;
+    pthread_mutex_lock(&builtin_func_mutex);
+    if (!builtin_funcs_registered) {
+        register_builtin_func("upper", builtin_func_upper); 
+        register_builtin_func("lower", builtin_func_lower);
+        register_builtin_func("title", builtin_func_title);
+        register_builtin_func("reverse", builtin_func_reverse);
+        builtin_funcs_registered = true;
+    }
+    pthread_mutex_unlock(&builtin_func_mutex);
 
     return ctx;
+}
+
+uint8_t
+mp_clear_vars(mp_context_t *ctx)
+{
+    if (ctx == NULL) {
+        return 1;
+    }
+
+    for (uint16_t i = 0; i < ctx->var_count; i++) {
+        free(ctx->vars[i].key);
+        free(ctx->vars[i].val);
+    }
+    ctx->var_count = 0;
+
+    return 0;
 }
 
 void
 mp_free(mp_context_t *ctx)
 {
     if (ctx != NULL) {
+        mp_clear_vars(ctx);
+        free(ctx->vars);
         free(ctx);
     }
+}
+
+static uint8_t
+set_err(mp_context_t *ctx, uint8_t code, const char *msg)
+{
+    ctx->err_code = code;
+    snprintf(ctx->err_msg, sizeof(ctx->err_msg), "%s", msg);
+    return 1;
 }
 
 uint8_t
 mp_set_var(mp_context_t *ctx, const char *name, const char *val)
 {
     if (ctx == NULL) {
-        ctx->err_code = MP_ERR_NULL_CONTEXT;
-        snprintf(ctx->err_msg, sizeof(ctx->err_msg),
-            MP_ERR_NULL_CONTEXT_STR);
         return 1;
     }
 
     if (name == NULL || val == NULL) {
-        ctx->err_code = MP_ERR_INVALID_VARIABLE;
-        snprintf(ctx->err_msg, sizeof(ctx->err_msg),
+        return set_err(ctx, MP_ERR_INVALID_VARIABLE,
             MP_ERR_INVALID_VARIABLE_STR);
-        return 1;
     }
 
-    if (!IS_NULL_TERMINATED(name, MAX_VAR_NAME_LEN) || \
-        !IS_NULL_TERMINATED(val, MAX_VAR_VAL_LEN)) {
-        ctx->err_code = MP_ERR_INVALID_VARIABLE;
-        snprintf(ctx->err_msg, sizeof(ctx->err_msg),
-            MP_ERR_VAR_NOT_NULL_TERMINATED_STR);
-        return 1;
+    // reject, never truncate
+    if (!IS_NULL_TERMINATED(name, MAX_VAR_NAME_LEN)) {
+        return set_err(ctx, MP_ERR_VAR_TOO_LONG, "variable name too long");
+    }
+    if (!IS_NULL_TERMINATED(val, MAX_VAR_VAL_LEN)) {
+        return set_err(ctx, MP_ERR_VAR_TOO_LONG, "variable value too long");
     }
 
-    for (uint64_t i = 0; i < ctx->var_count; i++) {
+    char *v = strdup(val);
+    if (v == NULL) {
+        return set_err(ctx, MP_ERR_NO_MEMORY, "out of memory");
+    }
+
+    for (uint16_t i = 0; i < ctx->var_count; i++) {
         if (strcmp(ctx->vars[i].key, name) == 0) {
-            strxcpy(ctx->vars[i].value, val, MAX_VARS);
+            free(ctx->vars[i].val);
+            ctx->vars[i].val = v;
             return 0;
         }
     }
-        
-    if (ctx->var_count < MAX_VARS) {
-        strxcpy(ctx->vars[ctx->var_count].key, name, MAX_VARS);
-        strxcpy(ctx->vars[ctx->var_count].value, val, MAX_VARS);
-        ctx->var_count++;
+
+    if (ctx->var_count >= MAX_VARS) {
+        free(v);
+        return set_err(ctx, MP_ERR_TOO_MANY_VARS, "too many variables");
     }
+
+    if (ctx->var_count == ctx->var_cap) {
+        uint16_t cap = ctx->var_cap ? (uint16_t)(ctx->var_cap * 2) : 16;
+        var_t *nv = realloc(ctx->vars, cap * sizeof(*nv));
+        if (nv == NULL) {
+            free(v);
+            return set_err(ctx, MP_ERR_NO_MEMORY, "out of memory");
+        }
+        ctx->vars = nv;
+        ctx->var_cap = cap;
+    }
+
+    char *k = strdup(name);
+    if (k == NULL) {
+        free(v);
+        return set_err(ctx, MP_ERR_NO_MEMORY, "out of memory");
+    }
+
+    ctx->vars[ctx->var_count].key = k;
+    ctx->vars[ctx->var_count].val = v;
+    ctx->var_count++;
 
     return 0;
 }
@@ -252,25 +314,6 @@ mp_var_count(const mp_context_t *ctx)
     return ctx->var_count;
 }
 
-uint8_t
-mp_clear_vars(mp_context_t *ctx)
-{
-    if (ctx == NULL) {
-        ctx->err_code = MP_ERR_NULL_CONTEXT;
-        snprintf(ctx->err_msg, sizeof(ctx->err_msg),
-            MP_ERR_NULL_CONTEXT_STR);
-        return 1;
-    }
-
-    for (uint64_t i = 0; i < ctx->var_count; i++) {
-        ctx->vars[i].key[0] = '\0';
-        ctx->vars[i].value[0] = '\0';
-    }
-
-    ctx->var_count = 0;
-    return 0;
-}
-
 static char*
 get_var(mp_context_t *ctx, const char *key)
 {
@@ -280,7 +323,7 @@ get_var(mp_context_t *ctx, const char *key)
 
     for (uint64_t i = 0; i < ctx->var_count; i++) {
         if (strcmp(ctx->vars[i].key, key) == 0) {
-            return ctx->vars[i].value;
+            return ctx->vars[i].val;
         }
     }
 
@@ -291,24 +334,17 @@ uint8_t
 mp_register_func(mp_context_t *ctx, const char* name, mp_func fn)
 {
     if (ctx == NULL) {
-        ctx->err_code = MP_ERR_NULL_CONTEXT;
-        snprintf(ctx->err_msg, sizeof(ctx->err_msg),
-            MP_ERR_NULL_CONTEXT_STR);
-        return 1;
+        return MP_ERR_NULL_CONTEXT;
     }
 
     if (name == NULL || fn == NULL) {
-        ctx->err_code = MP_ERR_INVALID_FUNCTION;
-        snprintf(ctx->err_msg, sizeof(ctx->err_msg),
+        return set_err(ctx, MP_ERR_INVALID_FUNCTION,
             MP_ERR_INVALID_FUNCTION_STR);
-        return 1;
     }
 
     if (!IS_NULL_TERMINATED(name, MAX_VAR_NAME_LEN)) {
-        ctx->err_code = MP_ERR_INVALID_FUNCTION;
-        snprintf(ctx->err_msg, sizeof(ctx->err_msg),
+        return set_err(ctx, MP_ERR_INVALID_FUNCTION,
             MP_ERR_INVALID_FUNCTION_NAME_STR);
-        return 1;
     }
 
     if (ctx->user_func_registry.count < MAX_FUNCS) {
@@ -360,7 +396,7 @@ dirname_from_path(const char *path, char *dir)
 
     if (sl) {
         size_t len = sl - path;
-        strncpy(dir, path, len);
+        memcpy(dir, path, len);
         dir[len] = '\0';
     } else {
         strcpy(dir, ".");
@@ -399,12 +435,15 @@ file_mtime(const char *path)
 static cached_template_t*
 cache_lookup(const char *path)
 {
+    pthread_mutex_lock(&cache_mutex);
     for (uint8_t i = 0; i < cache_count; i++) {
         if (strcmp(cache[i].path, path) == 0) {
+            pthread_mutex_unlock(&cache_mutex);
             return &cache[i];
         }
     }
 
+    pthread_mutex_unlock(&cache_mutex);
     return NULL;
 }
 
@@ -441,16 +480,18 @@ cache_load(const char *path)
     content[len] = 0;
     fclose(fp);
 
+    pthread_mutex_lock(&cache_mutex);
     if (cache_item) {
         free(cache_item->content);
         cache_item->content = content;
         cache_item->mtime = now;
     } else if (cache_count < MAX_CACHED) {
-        strncpy(cache[cache_count].path, path, PATH_MAX_LEN);
+        strxcpy(cache[cache_count].path, path, PATH_MAX_LEN);
         cache[cache_count].content = content;
         cache[cache_count].mtime = now;
         cache_count++;
     }
+    pthread_mutex_unlock(&cache_mutex);
 
     return content;
 }
@@ -462,10 +503,10 @@ cache_load(const char *path)
  * already been included.
  */
 static bool
-is_included(const char *fullpath)
+is_included(mp_context_t *ctx, const char *fullpath)
 {
-    for (uint8_t i = 0; i < include_depth; i++) {
-        if (strcmp(include_stack[i], fullpath) == 0) {
+    for (uint8_t i = 0; i < ctx->include_depth; i++) {
+        if (strcmp(ctx->include_stack[i], fullpath) == 0) {
             return true;
         }
     }
@@ -477,10 +518,11 @@ is_included(const char *fullpath)
  * push_include stores the path of the included template file.
  */
 static void
-push_include(const char *fullpath)
+push_include(mp_context_t *ctx, const char *fullpath)
 {
-    if (include_depth < MAX_INCLUDE_STACK) {
-        strncpy(include_stack[include_depth++], fullpath, PATH_MAX_LEN);
+    if (ctx->include_depth < MAX_INCLUDE_STACK) {
+        strxcpy(ctx->include_stack[ctx->include_depth++], fullpath,
+            PATH_MAX_LEN);
     }
 }
 
@@ -488,10 +530,10 @@ push_include(const char *fullpath)
  * pop_include essentially moves the stack pointer up (decreases). 
  */
 static void
-pop_include()
+pop_include(mp_context_t *ctx)
 {
-    if (include_depth > 0) {
-        include_depth--;
+    if (ctx->include_depth > 0) {
+        ctx->include_depth--;
     }
 }
 
@@ -662,7 +704,7 @@ static double
 parse_logic(mp_context_t *ctx, const char **str)
 {
     if (ctx == NULL) {
-        return 0;
+        return (double)0;
     }
 
     double v = parse_compare(ctx, str);
@@ -693,7 +735,7 @@ static double
 parse_expr(mp_context_t *ctx, const char **str)
 {
     if (ctx == NULL) {
-        return 0;
+        return (double)0;
     }
 
     return parse_logic(ctx, str);
@@ -719,10 +761,7 @@ mp_render_file(mp_context_t *ctx, FILE *out, const char *filename,
                const char *caller_dir)
 {
     if (ctx == NULL) {
-        ctx->err_code = MP_ERR_NULL_CONTEXT;
-        snprintf(ctx->err_msg, sizeof(ctx->err_msg),
-            "context cannot be NULL");
-        return 1;
+        return MP_ERR_NULL_CONTEXT;
     }
 
     char full_path[PATH_MAX_LEN];
@@ -742,15 +781,15 @@ mp_render_file(mp_context_t *ctx, FILE *out, const char *filename,
     }
 
     // guard against cyclic include
-    if (is_included(abs_path)) {
+    if (is_included(ctx, abs_path)) {
         return 0;
     }
 
-    push_include(abs_path);
+    push_include(ctx,abs_path);
 
     char *content = cache_load(abs_path);
     if (content == NULL) {
-        pop_include();
+        pop_include(ctx);
         ctx->err_code = MP_ERR_UNABLE_TO_LOAD_INCLUDE;
         snprintf(ctx->err_msg, sizeof(ctx->err_msg),
             "unable to load include: %s", abs_path);
@@ -764,56 +803,45 @@ mp_render_file(mp_context_t *ctx, FILE *out, const char *filename,
     int ret = mp_render_segment(ctx, out, content, NULL, dir);
     if (ret != 0) {
         free(content);
-        pop_include();
+        pop_include(ctx);
         return ret;
     }
 
-    pop_include();
+    pop_include(ctx);
 
     return 0;
 }
 
 /**
- * html_escape receives a string and performs HTML escaping and returns a
- * new string.
+ * html_escaped writes the given string to out with HTML special characters
+ * escaped. It streams directly to out so there is no intermediate buffer and
+ * no length limit.
  */
-static char*
-html_escape(const char *s)
+static void
+html_escaped(FILE *out, const char *s)
 {
-    static char buf[1024];
-    char *p = buf;
-
-    while (*s && (p - buf) < 1020) {
+    for (; *s; s++) {
         switch (*s) {
             case '&':
-                strcpy(p, "&amp;");
-                p += 5;
+                fputs("&amp;", out);
                 break;
             case '<':
-                strcpy(p, "&lt;");
-                p += 4;
+                fputs("&lt;", out);
                 break;
             case '>':
-                strcpy(p, "&gt;");
-                p += 4;
+                fputs("&gt;", out);
                 break;
             case '"':
-                strcpy(p, "&quot;");
-                p += 6;
+                fputs("&quot;", out);
                 break;
             case '\'':
-                strcpy(p, "&#39;");
-                p += 5;
+                fputs("&#39;", out);
                 break;
             default:
-                *p++ = *s;
+                fputc(*s, out);
                 break;
         }
-        s++;
     }
-    *p = 0;
-
-    return buf;
 }
 
 /**
@@ -824,10 +852,7 @@ mp_render_segment(mp_context_t *ctx, FILE *out, const char *tpl,
                   const char *end, const char *base_dir)
 {
     if (ctx == NULL) {
-        ctx->err_code = MP_ERR_NULL_CONTEXT;
-        snprintf(ctx->err_msg, sizeof(ctx->err_msg),
-            "context cannot be NULL");
-        return 1;
+        return MP_ERR_NULL_CONTEXT;
     }
 
     const char *p = tpl;
@@ -924,7 +949,7 @@ mp_render_segment(mp_context_t *ctx, FILE *out, const char *tpl,
                 }
 
                 const char *items = get_var(ctx, list);
-                char buf[512];
+                char buf[MAX_VAR_VAL_LEN];
                 strcpy(buf, items);
                 char *it = strtok(buf, ",");
 
@@ -948,10 +973,8 @@ mp_render_segment(mp_context_t *ctx, FILE *out, const char *tpl,
                         return ret;
                     }
                 } else {
-                    ctx->err_code = MP_ERR_INVALID_INCLUDE_SYNTAX;
-                    snprintf(ctx->err_msg, sizeof(ctx->err_msg),
+                    return set_err(ctx, MP_ERR_INVALID_INCLUDE_SYNTAX,
                         "invalid include syntax");
-                    return 1;
                 }
                 continue;
             }
@@ -962,7 +985,14 @@ mp_render_segment(mp_context_t *ctx, FILE *out, const char *tpl,
             if (sscanf(token, "%63s %127[^\n]", func, arg) == 2) {
                 mp_func f = find_func(ctx, func);
                 if (f) {
-                    fprintf(out, "%s", html_escape(f(get_var(ctx, arg))));
+                    char *tmp = strdup(get_var(ctx, arg));
+                    if (tmp == NULL) {
+                        return set_err(ctx, MP_ERR_NO_MEMORY, "out of memory");
+                    }
+
+                    html_escaped(out, f(tmp));
+                    free(tmp);
+
                     continue;
                 }
             }
@@ -988,8 +1018,7 @@ mp_render_segment(mp_context_t *ctx, FILE *out, const char *tpl,
                 }
                 fprintf(out, "%s", get_var(ctx, var));
             } else {
-                const char *val = get_var(ctx, token);
-                fprintf(out, "%s", html_escape(val));
+                html_escaped(out, get_var(ctx, token));
             }
         } else {
             fputc(*p++, out);
@@ -1013,7 +1042,7 @@ int
 mp_err_code(const mp_context_t *ctx)
 {
     if (ctx == NULL) {
-        return MP_ERR_NULL_CONTEXT;
+        return 0;
     }
 
     return ctx->err_code;
@@ -1041,6 +1070,10 @@ mp_err_code_str(const mp_context_t *ctx)
             return "invalid variable";
         case MP_ERR_INVALID_FUNCTION:
             return "invalid function";
+        case MP_ERR_VAR_TOO_LONG:
+            return "variable name or value too long";
+        case MP_ERR_TOO_MANY_VARS:
+            return "too many variables";
         case MP_ERR_NULL_CONTEXT:
             return "null context";
         case MP_OK:

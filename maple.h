@@ -37,7 +37,7 @@ extern "C" {
 
 #define MAX_VARS 256
 #define MAX_VAR_NAME_LEN 64
-#define MAX_VAR_VAL_LEN 512
+#define MAX_VAR_VAL_LEN 65536
 #define MAX_FUNCS 64
 
 enum {
@@ -49,16 +49,11 @@ enum {
     MP_ERR_UNABLE_TO_LOAD_INCLUDE,
     MP_ERR_INVALID_VARIABLE,
     MP_ERR_INVALID_FUNCTION,
-    MP_ERR_NULL_CONTEXT
+    MP_ERR_NULL_CONTEXT,
+    MP_ERR_VAR_TOO_LONG,
+    MP_ERR_TOO_MANY_VARS,
+    MP_ERR_NO_MEMORY
 };
-
-/**
- * var_t holds all variables stored in key/value pairs.
- */
-typedef struct {
-    char key[MAX_VARS];
-    char value[MAX_VARS];
-} var_t;
 
 /**
  * map_func defines the signature for functions given to the template engine.
@@ -94,6 +89,12 @@ mp_context_t*
 mp_init();
 
 /**
+ * mp_clear_vars clears all variables in the given context.
+ */
+uint8_t
+mp_clear_vars(mp_context_t *ctx);
+
+/**
  * mp_free frees the used memory for the fiven context.
  */
 void
@@ -114,12 +115,6 @@ mp_set_var(mp_context_t *ctx, const char *name, const char *val);
  */
 uint16_t
 mp_var_count(const mp_context_t *ctx);
-
-/**
- * mp_clear_vars clears all variables in the given context.
- */
-uint8_t
-mp_clear_vars(mp_context_t *ctx);
 
 /**
  * mp_register_func adds a user defined function to the context to be used
